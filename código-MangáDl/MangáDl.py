@@ -65,6 +65,44 @@ def verifpath(dirp, mode):
     
     return dirp
 
+# Função para realizar os downloads
+def startdownloads(alldatarequired):
+    for requireds in range(len(alldatarequired)):
+        nametitle=alldatarequired[requireds][0]
+        namecaps=alldatarequired[requireds][1]
+        listcaps=alldatarequired[requireds][3]
+        qntcaps=len(namecaps)
+        especifictitlepos=alldatarequired[requireds][2]
+        titlefolder=verifpath((hqpath+('\{}').format(nametitle)), 1)
+        for cap in sorted(listcaps):
+            rightposcap=qntcaps-cap
+            namecap=namecaps[rightposcap][0]
+            capfolder=verifpath((titlefolder+('\{}').format(namecap)), 1)
+            capurl=(alltitlesandlinks[especifictitlepos][1]+(('/{}').format(namecaps[rightposcap][1])))
+            pagesurl=getinfo(capurl, None, 'img')
+            if pagesurl==-10:
+
+                return -10
+            numpage=-1
+            for pg in pagesurl:
+                numpage=numpage+1
+                pgdata=getinfo(pg, None, 'content')
+                if pgdata==-10:
+
+                    return -10
+                pgdata=(pgdata.content)
+                filename=(('Page_{}').format(numpage))
+                pagefile=capfolder+(('\{}.png').format(filename))
+                if verifpath(pagefile, 0)==1:
+                    open(pagefile, 'wb').write(pgdata)
+                    os.system('cls')
+                    print(('\n{}').format(nametitle))
+                    print(('\n{}').format(namecap))
+                    print(('\nBaixando página {}...').format(numpage))
+            os.system('cls')
+            cbzconvert(titlefolder, nametitle, namecap, capfolder)
+    os.system('cls')
+    print('\nTodos os downloads foram concluídos.')
 
 # Função para converter arquivos em '.cbz'
 def cbzconvert(titlefolder, nametitle, namecap, capfolder):
@@ -310,42 +348,9 @@ def especificinfo(alltitlesandlinks):
             
             return -10
 
-    for requireds in range(len(alldatarequired)):
-        nametitle=alldatarequired[requireds][0]
-        namecaps=alldatarequired[requireds][1]
-        listcaps=alldatarequired[requireds][3]
-        qntcaps=len(namecaps)
-        especifictitlepos=alldatarequired[requireds][2]
-        titlefolder=verifpath((hqpath+('\{}').format(nametitle)), 1)
-        for cap in sorted(listcaps):
-            rightposcap=qntcaps-cap
-            namecap=namecaps[rightposcap][0]
-            capfolder=verifpath((titlefolder+('\{}').format(namecap)), 1)
-            capurl=(alltitlesandlinks[especifictitlepos][1]+(('/{}').format(namecaps[rightposcap][1])))
-            pagesurl=getinfo(capurl, None, 'img')
-            if pagesurl==-10:
+    if startdownloads(alldatarequired)==-10:
 
-                return -10
-            numpage=-1
-            for pg in pagesurl:
-                numpage=numpage+1
-                pgdata=getinfo(pg, None, 'content')
-                if pgdata==-10:
-
-                    return -10
-                pgdata=(pgdata.content)
-                filename=(('Page_{}').format(numpage))
-                pagefile=capfolder+(('\{}.png').format(filename))
-                if verifpath(pagefile, 0)==1:
-                    open(pagefile, 'wb').write(pgdata)
-                    os.system('cls')
-                    print(('\n{}').format(nametitle))
-                    print(('\n{}').format(namecap))
-                    print(('\nBaixando página {}...').format(numpage))
-            os.system('cls')
-            cbzconvert(titlefolder, nametitle, namecap, capfolder)
-    os.system('cls')
-    print('\nTodos os downloads foram concluídos.')
+        return -10
 
 # Função para conferir os capítulos escolhidos para download
 def leiacap(caps, qntcaps):
