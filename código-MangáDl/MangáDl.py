@@ -66,7 +66,7 @@ def verifpath(dirp, mode):
     return dirp
 
 # Função para realizar os downloads
-def startdownloads(alldatarequired):
+def startdownloads(alldatarequired, alltitlesandlinks):
     for requireds in range(len(alldatarequired)):
         nametitle=alldatarequired[requireds][0]
         namecaps=alldatarequired[requireds][1]
@@ -348,7 +348,7 @@ def especificinfo(alltitlesandlinks):
             
             return -10
 
-    if startdownloads(alldatarequired)==-10:
+    if startdownloads(alldatarequired, alltitlesandlinks)==-10:
 
         return -10
 
