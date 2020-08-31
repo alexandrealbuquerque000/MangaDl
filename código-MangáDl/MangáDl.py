@@ -329,10 +329,11 @@ def especificinfo(alltitlesandlinks):
             numpage=-1
             for pg in pagesurl:
                 numpage=numpage+1
-                pgdata=(getinfo(pg, None, 'content').content)
+                pgdata=getinfo(pg, None, 'content')
                 if pgdata==-10:
 
                     return -10
+                pgdata=(pgdata.content)
                 filename=(('Page_{}').format(numpage))
                 pagefile=capfolder+(('\{}.png').format(filename))
                 if verifpath(pagefile, 0)==1:
