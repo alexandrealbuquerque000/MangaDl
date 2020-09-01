@@ -538,11 +538,3 @@ def run():
 
 
 run()
-
-##############################
-opção='''
-https://mangalivre.net/lista-de-mangas/ordenar-por-nome/todos
-https://mangalivre.net/series/index/nome/todos?page=2
-
-'''
-#############################
