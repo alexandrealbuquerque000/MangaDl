@@ -3,8 +3,11 @@
 
 ## Como usar:
 ```
-Primeiramente o programa coletará os dados do mangahost para só então realmente iniciar o programa (esse processo pode demorar um pouco).
+Primeiramente, o programa coletará os dados do mangahost para só então realmente iniciar o programa (esse processo pode demorar um pouco).
 Essa etapa é necessária para carregar todas as informações apenas uma vez, para assim, deixar o programa mais rápido e permitir que vários mangás sejam baixados de uma vez sem grandes esperas ou complicações.
+Há também a opção de salvar os dados do site em um arquivo de texto para que, em uma próxima execução, o programa não tenha que buscar por todos os dados de novo, melhorando assim, a fluidez do programa.
+No entanto, se o usuário quiser utilizar dados 100% atualizandos, ele precisará solicitar a coleta de dados em tempo real e ainda atualizar o arquivo de texto com esses novos dados ou até mesmo criar outro arquivo.
+(Esses dados são o título do mangá e a url para acessar esse título, portanto, provavelmente não haverá necessidade de ficar atualizando os dados o tempo todo já que existem quase 9000 mangás hospedados no site e a sua solicitação provavelmente já está entre eles.)
 
 Em seguida, o usuário terá que selecionar a pasta em que todos os downloads dos mangás ficarão no explorador de arquivos que o programa abrirá automaticamente. Ou então, o usuário pode digitar o diretório dessa pasta manualmente.
 
