@@ -10,6 +10,7 @@ import tkinter, tkinter.filedialog as tf # Para abrir o explorador de arquivos
 import zipfile # Para compactar os capítulos
 from pathlib import Path # Para verificar a existência do diretório
 import shutil # Para apagar pastas
+import time # Para fazer o programa esperar um certo tempo para executar determinada ação
 
 # Função para aceitar apenas strings
 def leiastr(msg):
@@ -35,21 +36,97 @@ def askreboot():
     return 0
 
 # Função para obter o diretório central de destino dos arquivos
-def gethqpath():
+def gethqpath(mode):
     global hqpath
 
-    root = tkinter.Tk()
-    root.geometry('0x0')
-    hqpathchoose=('Selecione o diretório da pasta que contém todos os arquivos que deseja manipular: ')
-    print('\n'+hqpathchoose)
-    hqpath = tf.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
-    root.destroy()       
-    if hqpath=='':
-        print('\nOpção cancelada.\n\nTente novamente')
-        hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
-    while ((Path(hqpath)).is_dir())==False:
+    if mode==1:
+        root = tkinter.Tk()
+        root.geometry('0x0')
+        hqpathchoose=('Selecione o diretório da pasta que contém todos os arquivos que deseja manipular: ')
+        print('\n'+hqpathchoose)
+        hqpath = tf.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
+        root.destroy()       
+        if hqpath=='':
+            print('\nOpção cancelada.\n\nTente novamente')
+            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+        while ((Path(hqpath)).is_dir())==False:
+            print("\nEsse diretório não existe.\n\nTente novamente.")
+            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+    else:
+        archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para a inicialização do programa: ').strip()
+        while True:
+            try:
+                arquivo=open(archpath, 'r', encoding="utf-8")
+            except (FileNotFoundError, PermissionError, OSError):
+                askarcherro=leiastr('Arquivo inválido.\n\nDeseja escolher algum outro arquivo? ')
+                if 's' in askarcherro:
+                    archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ').strip()
+                    continue
+                else:
+                    askcreatearch=leiastr("Deseja criar um arquivo chamado com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
+                    if 'cr' in askcreatearch:
+                        conteúdo, reboot=createarchdata()
+                    else:
+                        conteúdo, reboot=colectdata()
+                    break
+            else:
+                reboot=1
+                conteúdo=arquivo.read()
+                conteúdo=convertstrtolist(conteúdo, 'AlêMark', 'minimark')
+                break
+
+        return conteúdo, reboot
+
+ # Função para criar arquivo com os dados do site
+def createarchdata():
+    archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
+    while ((Path(archpath)).is_dir())==False:
         print("\nEsse diretório não existe.\n\nTente novamente.")
-        hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
+        archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
+    namearch=input('\nDigite o nome do arquivo: ').strip()
+    namearch=namearch+'.txt'
+    archpath=archpath+(('\{}').format(namearch))
+    arquivo=open(archpath, 'w')
+    arquivo.close()
+    arquivo=open(archpath, 'w', encoding="utf-8")
+    conteúdo, reboot=colectdata()
+    formatedconteúdo=convertlisttostr(conteúdo, 'AlêMark', 'minimark')
+    arquivo.write(formatedconteúdo)
+    arquivo.close()
+
+    return conteúdo, reboot
+
+ # Função para converter a lista de dados em string
+def convertlisttostr(listobj, mark1, mark2):
+    completestr=mark1
+    for str1 in listobj:
+        for str2 in str1:
+            completestr = completestr + mark2 + str2
+        completestr= completestr + mark2 + mark1
+   
+    return completestr
+
+ # Função para converter a string de dados em lista
+def convertstrtolist(strobj, mark1, mark2):
+    strobj=strobj.split(mark2)
+    tamstrobj=len(strobj)
+    completelist=[]
+    buildlist=[]
+    strcount=0
+    countloop=0
+    for list1 in strobj:
+        countloop=countloop+1
+        if list1==mark1:
+            strcount=0
+            buildlist=[]
+            pass
+        else:
+            strcount=strcount+1
+            buildlist.append(list1)
+        if strcount==0 and countloop!=tamstrobj:
+            completelist.append(buildlist)
+  
+    return completelist
 
 # Função para verificar existência de pasta ou arquivo
 def verifpath(dirp, mode):
@@ -417,8 +494,24 @@ def showprogram():
     print(' MangáDl by Alê')
     print('-'*16)
 
-# Função para iniciar o programa
-def run():
+def presetdata():
+    showprogram()
+    askpreset=leiastr('Deseja coletar os dados atualizados ou prefere utilizar dados já existentes? ')
+    if 'ex' in askpreset:
+        askpreset=1
+        alltitlesandlinks, reboot=gethqpath(0)
+    else:
+        askpreset=0
+        askcreatearch=leiastr("Deseja criar um arquivo chamado 'alldatamangádl.txt' na sua área de trabalho com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
+        if 's' in askcreatearch:
+            alltitlesandlinks, reboot=createarchdata()
+        else:
+            alltitlesandlinks, reboot=colectdata()
+    
+    return askpreset, alltitlesandlinks, reboot
+
+
+def colectdata():
     while True:
         os.system('cls')
         alltitlesandlinks=getalltitlesandlinks()
@@ -429,9 +522,15 @@ def run():
             break
         reboot=1
         break
+
+    return alltitlesandlinks, reboot
+
+# Função para iniciar o programa
+def run():
+    askpreset, alltitlesandlinks, reboot=presetdata()
     while reboot==1:
         showprogram()
-        gethqpath()
+        gethqpath(1)
         result=especificinfo(alltitlesandlinks)
         reboot=askreboot()
     os.system('cls')
@@ -439,3 +538,11 @@ def run():
 
 
 run()
+
+##############################
+opção='''
+https://mangalivre.net/lista-de-mangas/ordenar-por-nome/todos
+https://mangalivre.net/series/index/nome/todos?page=2
+
+'''
+#############################
