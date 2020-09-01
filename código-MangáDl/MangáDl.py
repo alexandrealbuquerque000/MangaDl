@@ -35,6 +35,12 @@ def askreboot():
 
     return 0
 
+# Função para ajustar diretório inserido
+def inputdir(pdir):
+    pdir=input(pdir).strip('"').strip()
+
+    return pdir
+
 # Função para obter o diretório central de destino dos arquivos
 def gethqpath(mode):
     global hqpath
@@ -48,19 +54,19 @@ def gethqpath(mode):
         root.destroy()       
         if hqpath=='':
             print('\nOpção cancelada.\n\nTente novamente')
-            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+            hqpath=inputdir('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
         while ((Path(hqpath)).is_dir())==False:
             print("\nEsse diretório não existe.\n\nTente novamente.")
-            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+            hqpath=inputdir('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
     else:
-        archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para a inicialização do programa: ').strip()
+        archpath=inputdir('\nDigite o diretório do arquivo que contém todos os dados necessários para a inicialização do programa: ')
         while True:
             try:
                 arquivo=open(archpath, 'r', encoding="utf-8")
             except (FileNotFoundError, PermissionError, OSError):
                 askarcherro=leiastr('Arquivo inválido.\n\nDeseja escolher algum outro arquivo? ')
                 if 's' in askarcherro:
-                    archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ').strip()
+                    archpath=inputdir('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ')
                     continue
                 else:
                     askcreatearch=leiastr("Deseja criar um arquivo chamado com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
@@ -79,11 +85,11 @@ def gethqpath(mode):
 
  # Função para criar arquivo com os dados do site
 def createarchdata():
-    archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
+    archpath=inputdir('\nDigite o diretório em que deseja criar esse arquivo: ')
     while ((Path(archpath)).is_dir())==False:
         print("\nEsse diretório não existe.\n\nTente novamente.")
-        archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
-    namearch=input('\nDigite o nome do arquivo: ').strip()
+        archpath=inputdir('\nDigite o diretório em que deseja criar esse arquivo: ')
+    namearch=inputdir('\nDigite o nome do arquivo: ')
     namearch=namearch+'.txt'
     archpath=archpath+(('\{}').format(namearch))
     arquivo=open(archpath, 'w')
@@ -538,11 +544,3 @@ def run():
 
 
 run()
-
-##############################
-opção='''
-https://mangalivre.net/lista-de-mangas/ordenar-por-nome/todos
-https://mangalivre.net/series/index/nome/todos?page=2
-
-'''
-#############################
