@@ -18,13 +18,62 @@ def leiastr(msg):
         print()
         verifstr=str(input(msg).strip().replace(" ", ""))
         if verifstr.isalpha() == False:
-            print()
-            print("ERRO:""\nDigite apenas letras.")
+            print("\nERRO:""\n\nDigite apenas letras.")
             continue
         else:
             verifstr=verifstr.lower()
 
             return verifstr
+
+#Função verificadora de números inteiros entre determinados valores
+def rdintnrange(msg, qntmáx):
+    while True:
+        try:
+            print()
+            verifint=int(input(msg).strip().replace(" ", ""))
+        except (ValueError, TypeError, IndexError):
+            print("\nERRO:""\nDigite apenas números inteiros.")
+            continue
+        else:
+            if verifint not in range(1, qntmáx+1):
+                print(("\nERRO:""\nDigite apenas números inteiros entre 1 e {}.").format(qntmáx))
+                continue
+
+            return verifint
+
+ # Função para ajustar as configurações do programa para, futuramente, implementar vários sites
+def setconfig():
+    global serverchoice, confgs
+
+    showprogram()
+    svrmsg='''
+    Opções: *Apenas uma opção por enquanto.*
+
+        (1) - Mangá Host    
+
+        Escolha um número correspondente ao site desejado para a utilização do programa: '''
+    serverchoice=rdintnrange(svrmsg, 1)
+    keys=   [   
+                'basesite', 'mainsite', 'getsitenumpagesclass', 'getsitenumpagesextrainfo', 
+                'pagessite', 'titlesandlinksclass', 'titlesextrainfo', 'titlesgttitle', 'titlesgturl',
+                'capsnamesandidsclass', 'capsextrainfo', 'capsgttitle',
+                'pagescapclass', 'cappagesextrainfo', 'pgsgturl',
+                'contentpagesclass', 'contentpagesextainfo'
+            ]
+
+    if serverchoice==1:
+        values=   [   
+                    'https://mangahosted.com', 'https://mangahosted.com/mangas', 'pages', None, 
+                    'https://mangahosted.com/mangas/page/{}', 'manga-block-title-link', None, 'title', 'href',
+                    'btn-caps w-button', None, 'title',
+                    None, 'img', 'src',
+                    None, 'content'
+                  ]
+    elif serverchoice==2:
+        values=[]
+    elif serverchoice==3:
+        values=[]
+    confgs=dict(zip(keys, values))
 
 # Função para perguntar sobre a reinicialização do programa
 def askreboot():
@@ -35,11 +84,18 @@ def askreboot():
 
     return 0
 
+# Função para ajustar diretório inserido
+def inputdir(pdir):
+    pdir=input(pdir).strip('"').strip()
+
+    return pdir
+
 # Função para obter o diretório central de destino dos arquivos
 def gethqpath(mode):
     global hqpath
 
     if mode==1:
+        showprogram()
         root = tkinter.Tk()
         root.geometry('0x0')
         hqpathchoose=('Selecione o diretório da pasta que contém todos os arquivos que deseja manipular: ')
@@ -48,22 +104,22 @@ def gethqpath(mode):
         root.destroy()       
         if hqpath=='':
             print('\nOpção cancelada.\n\nTente novamente')
-            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+            hqpath=inputdir('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
         while ((Path(hqpath)).is_dir())==False:
             print("\nEsse diretório não existe.\n\nTente novamente.")
-            hqpath=input('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ').strip()
+            hqpath=inputdir('\nDigite o diretório da pasta que contém todos os arquivos que deseja manipular: ')
     else:
-        archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para a inicialização do programa: ').strip()
+        archpath=inputdir('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ')
         while True:
             try:
                 arquivo=open(archpath, 'r', encoding="utf-8")
             except (FileNotFoundError, PermissionError, OSError):
                 askarcherro=leiastr('Arquivo inválido.\n\nDeseja escolher algum outro arquivo? ')
                 if 's' in askarcherro:
-                    archpath=input('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ').strip()
+                    archpath=inputdir('\nDigite o diretório do arquivo que contém todos os dados necessários para o funcionamento do programa: ')
                     continue
                 else:
-                    askcreatearch=leiastr("Deseja criar um arquivo chamado com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
+                    askcreatearch=leiastr("Deseja criar um arquivo com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
                     if 'cr' in askcreatearch:
                         conteúdo, reboot=createarchdata()
                     else:
@@ -79,11 +135,11 @@ def gethqpath(mode):
 
  # Função para criar arquivo com os dados do site
 def createarchdata():
-    archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
+    archpath=inputdir('\nDigite o diretório em que deseja criar esse arquivo: ')
     while ((Path(archpath)).is_dir())==False:
         print("\nEsse diretório não existe.\n\nTente novamente.")
-        archpath=input('\nDigite o diretório em que deseja criar esse arquivo: ').strip()
-    namearch=input('\nDigite o nome do arquivo: ').strip()
+        archpath=inputdir('\nDigite o diretório em que deseja criar esse arquivo: ')
+    namearch=inputdir('\nDigite o nome do arquivo: ')
     namearch=namearch+'.txt'
     archpath=archpath+(('\{}').format(namearch))
     arquivo=open(archpath, 'w')
@@ -156,14 +212,14 @@ def startdownloads(alldatarequired, alltitlesandlinks):
             namecap=namecaps[rightposcap][0]
             capfolder=verifpath((titlefolder+('\{}').format(namecap)), 1)
             capurl=(alltitlesandlinks[especifictitlepos][1]+(('/{}').format(namecaps[rightposcap][1])))
-            pagesurl=getinfo(capurl, None, 'img')
+            pagesurl=getinfo(capurl, confgs['pagescapclass'], confgs['cappagesextrainfo'])
             if pagesurl==-10:
 
                 return -10
             numpage=-1
             for pg in pagesurl:
                 numpage=numpage+1
-                pgdata=getinfo(pg, None, 'content')
+                pgdata=getinfo(pg, confgs['contentpagesclass'], confgs['contentpagesextainfo'])
                 if pgdata==-10:
 
                     return -10
@@ -271,14 +327,16 @@ def getinfo(site, classinfo, extrainfo):
         allinfo=soup.find_all(extrainfo, class_=classinfo)
         listinfo=[]
         for info in allinfo:
-            if classinfo=='manga-block-title-link':
+            if classinfo==confgs['titlesandlinksclass']:
                 showprogram()
                 print('\nColetando dados...')
-                listinfo.append([(info.get('title')), (info.get('href'))])
-            elif classinfo=='btn-caps w-button':
-                listinfo.append([(info.get('title')), (info.get_text())])
-            elif extrainfo=='img':
-                listinfo.append((info.get('src')))
+                listinfo.append([(info.get(confgs['titlesgttitle'])), (info.get(confgs['titlesgturl']))])
+            elif classinfo==confgs['capsnamesandidsclass']:
+                listinfo.append([(info.get(confgs['capsgttitle'])), (info.get_text())])
+            elif extrainfo==confgs['getsitenumpagesextrainfo']:
+                listinfo.append(info.get_text())
+            elif extrainfo==confgs['cappagesextrainfo']:
+                listinfo.append((info.get(confgs['pgsgturl'])))
             else:
                 listinfo.append([info.get_text()])
 
@@ -289,37 +347,48 @@ def getinfo(site, classinfo, extrainfo):
         return -10
 
 # Função para obter o número de páginas do site
-def getnumwebpages():
-    numwebpages=getinfo('https://mangahosted.com/mangas', 'pages', None)
-    if numwebpages==-10:
-
-        return -10, -10
-    numwebpages=numwebpages[0][0]
-    numwb=[]
-    for wpinfo in numwebpages.split():
-        try:
-            wbi=int(wpinfo)
-        except(ValueError):
-            pass
-        else:
-            numwb.append(wbi)
-    if any(testp==None for testp in numwb) or len(numwb)!=2:
-        print('\nOcorreu algum erro durante a coleta de informações do website.')
-
-        return -10, -10
+def getnumwebpages():  
+    numwebpages=getinfo(confgs['mainsite'], confgs['getsitenumpagesclass'], confgs['getsitenumpagesextrainfo'])
+    if serverchoice==1:
+        lastpage=int(numwebpages[0].split()[-1])
     else:
+        numwbcontrol=[]
+        stop=0
+        while True:
+            if numwebpages==-10:
 
-        return numwb[0], numwb[1]
+                return -10
+            numwb=[]
+            for wpinfo in numwebpages:
+                try:
+                    wbi=int(wpinfo)
+                except(ValueError):
+                    pass
+                else:
+                    numwb.append(wbi)
+            for wbictrl in numwbcontrol:
+                if wbictrl==numwb and numwb!=[]:
+                    stop=1
+                    break
+            if stop==1:
+                break
+            numwbcontrol.append(numwb)  
+            numwebpages=(confgs['pagessite']).format(numwb[-1])
+            numwebpages=getinfo(numwebpages, confgs['getsitenumpagesclass'], confgs['getsitenumpagesextrainfo'])
+        lastpage=sorted(numwbcontrol[-1])[-1]
+
+    return lastpage
 
 # Função para obter todos os títulos/links do site
 def getalltitlesandlinks():
     alltitlesandlinks=[]
-    numwebpagestarts, numwebpagesends = getnumwebpages()
-    if (numwebpagestarts, numwebpagesends) == (-10, -10):
+    numwebpagesends = getnumwebpages()
+    if numwebpagesends==-10:
 
         return -10
-    for pg in range(numwebpagestarts, (numwebpagesends+1)):
-        numwbpgsinfo=getinfo((('https://mangahosted.com/mangas/page/{}').format(pg)), 'manga-block-title-link', None)
+    for pg in range(1, (numwebpagesends+1)):
+        numwbpgsinfo=(confgs['pagessite']).format(pg)
+        numwbpgsinfo=getinfo(numwbpgsinfo, confgs['titlesandlinksclass'], confgs['titlesextrainfo'])
         if numwbpgsinfo==-10:
 
             return -10
@@ -387,7 +456,7 @@ def especificinfo(alltitlesandlinks):
                 
                 return -10
         else:
-            namecaps=getinfo(alltitlesandlinks[especifictitlepos][1], 'btn-caps w-button', None)
+            namecaps=getinfo(alltitlesandlinks[especifictitlepos][1], confgs['capsnamesandidsclass'], confgs['capsextrainfo'])
             if namecaps==-10:
 
                 return -10
@@ -502,37 +571,35 @@ def presetdata():
         alltitlesandlinks, reboot=gethqpath(0)
     else:
         askpreset=0
-        askcreatearch=leiastr("Deseja criar um arquivo chamado 'alldatamangádl.txt' na sua área de trabalho com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
-        if 's' in askcreatearch:
+        askcreatearch=leiastr("Deseja criar um arquivo com os dados para o funcionamento do programa ou prefere utilizar dados temporários coletados em tempo real? ")
+        if 'cr' in askcreatearch:
             alltitlesandlinks, reboot=createarchdata()
         else:
             alltitlesandlinks, reboot=colectdata()
     
-    return askpreset, alltitlesandlinks, reboot
+    return alltitlesandlinks, reboot
 
 
-def colectdata():
-    while True:
-        os.system('cls')
-        alltitlesandlinks=getalltitlesandlinks()
-        if alltitlesandlinks==-10:
-            reboot=askreboot()
-            if reboot==1:
-                continue
-            break
+def colectdata(): 
+    os.system('cls')
+    alltitlesandlinks=getalltitlesandlinks()
+    if alltitlesandlinks==-10:
+        reboot=askreboot()
+    else:
         reboot=1
-        break
 
     return alltitlesandlinks, reboot
 
 # Função para iniciar o programa
 def run():
-    askpreset, alltitlesandlinks, reboot=presetdata()
+    reboot=1
     while reboot==1:
-        showprogram()
-        gethqpath(1)
-        result=especificinfo(alltitlesandlinks)
-        reboot=askreboot()
+        setconfig()
+        alltitlesandlinks, reboot=presetdata()
+        if reboot==1 and alltitlesandlinks!=-10:
+            gethqpath(1)
+            especificinfo(alltitlesandlinks)
+            reboot=askreboot()
     os.system('cls')
     input('\nObrigado por usar o programa! ;) ')
 
