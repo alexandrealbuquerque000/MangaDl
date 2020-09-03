@@ -468,10 +468,15 @@ def especificinfo(alltitlesandlinks):
             namecap=namecaps[numcap][0]
             poscap=qntcaps-numcap
             print(('({}) {}.').format(poscap, namecap))
-            capfile=(hqpath+('\{}\{}.cbz').format(nametitle, namecap))
-            capfiletest=verifpath(capfile, 0)
-            if capfiletest==1:
-                missingcaps.append(poscap)
+            capfilezip=(hqpath+('\{}\{}.zip').format(nametitle, namecap))
+            capfilecbz=(hqpath+('\{}\{}.cbz').format(nametitle, namecap))
+            capfiletest1=verifpath(capfilecbz, 0)
+            if capfiletest1==1:
+                capfiletest2=verifpath(capfilezip, 0)
+                if capfiletest2==0:
+                    os.rename(capfilezip, capfilecbz)
+                else:
+                    missingcaps.append(poscap)
         while True:
             listcaps=leiacap(((input('\nDigite os capítulos que deseja baixar: ').lower()).strip()), qntcaps)
             if listcaps==-10:
