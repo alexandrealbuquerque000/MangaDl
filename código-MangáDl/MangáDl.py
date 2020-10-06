@@ -1303,12 +1303,12 @@ def especificinfo(alltitlesandlinks):
                     if capfiletest2==0:
                         try:
                             testzipfile=zipfile.ZipFile(capfilezip)
-                        except Exception:
-                            shutil.rmtree(capfilezip)
+                        except (zipfile.error):
+                            os.remove(capfilezip)
                             capfiletest2=1 
                         else:
                             if testzipfile.testzip()!=None:
-                                    shutil.rmtree(capfilezip)
+                                    os.remove(capfilezip)
                                     capfiletest2=1 
                     if capfiletest2==0:
                         os.rename(capfilezip, capfilecbz)
