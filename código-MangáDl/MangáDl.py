@@ -893,10 +893,10 @@ def preloaddata(resetmode, namecap, capfolder, capurl):
                 pagefile=getcontentfiledir(namecap, capfolder, numpage)
                 if verifpath(pagefile, 0)==1:
                     pgdata=getinfo(pgurl, 'contentpagesclass', 'contentpagesextainfo', 'firstcontentfilter', 'secondcontentfilter')
-                    pgdata=pgdata.content
                     if pagesurl==10:
 
                         return -10
+                    pgdata=pgdata.content
             pgsdatalist.extend([pgurl, pgdata])
         capsinfolist.append(pgsdatalist)
     else:
