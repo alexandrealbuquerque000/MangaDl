@@ -1382,21 +1382,26 @@ def especificinfo(alltitlesandlinks):
     stoplist=[]
     stoplist.append(threadtrick)
     preloaddata(1, 0, 0, 0)
-    preloadthread=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'preload'))
-    preloadthread.setDaemon(daemonic=True)
-    preloadthread.start()
+    try:
+        preloadthread=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'preload'), daemon=True)
+        preloadthread.start() 
+    except (threading.ThreadError):
+        pass
     time.sleep(1.25)
     if totalchoices[2]=='both':
-        threadtoview=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'online'))
-        threadtodownload=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'offline'))
-        threadtoview.setDaemon(daemonic=True)
-        threadtodownload.setDaemon(daemonic=True)
-        threadtoview.start()
-        threadtodownload.start()
+        try:
+            threadtoview=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'online'), daemon=True)
+            threadtodownload=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, 'offline'), daemon=True)
+            threadtoview.start()
+            threadtodownload.start()
+        except (threading.ThreadError):
+            pass
     else:
-        threadchoice=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, totalchoices[2]))
-        threadchoice.setDaemon(daemonic=True)
-        threadchoice.start()
+        try:
+            threadchoice=threading.Thread(target=startprocess, args=(alldatarequired, alltitlesandlinks, totalchoices[2]), daemon=True)
+            threadchoice.start()
+        except (threading.ThreadError):
+            pass
     while True:
         if totalchoices[2]=='both':
             if threadtoview.is_alive()==False and 1 not in stoplist:
