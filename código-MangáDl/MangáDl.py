@@ -784,8 +784,9 @@ def getespecifictile(alltitlesandlinks):
 
  # Função para atualizar o texto de um arquivo existente ou criá-lo caso inexistente
 def updatearch(archdir, newlines):
-    if verifpath(archdir, 0)==1:
+    if verifpath(archdir, 0)==1 or newlines=='None':
         open(archdir, 'w', encoding='utf-8').close()
+        newlines==''
         returndir=1
     else:
         returndir=0
@@ -1006,6 +1007,7 @@ def onlineview(nametitle, numcap, htmlname, checkpoint, dircapcheckpoint, pagesi
             txtmsg=(('\nÚltimo {} {}: {}.').format(msginfo1, msginfo2, nametitle))
         else:
             txtmsg=(('\n{}\n\nÚltimo {} {}: {}.').format(nametitle, msginfo1, msginfo2, numcap))
+        updatearch(dircapcheckpoint, 'None')
         updatearch(dircapcheckpoint, txtmsg)
     if countviewedcaps%5==0:
         updateglobalmsg((('Deseja continuar {}? ').format(msginfo3)))
