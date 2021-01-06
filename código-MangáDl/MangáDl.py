@@ -874,7 +874,7 @@ def preloaddata(resetmode, namecap, capfolder, capurl):
         except (NameError):
             capsinfolist=[]
         pagesurl=getallinfolinks(capurl, 'numcappgsclass', 'numcappgsextrainfo', 'firstcappgsfilter', 'secondcappgsfilter', 'pagescapclass', 'cappagesextrainfo', 'firstpgscapfilter', 'secondpgscapfilter')  
-        if pagesurl==10:
+        if pagesurl==-10:
 
             return -10
         pagesurl=verifcopy(pagesurl)
@@ -887,7 +887,7 @@ def preloaddata(resetmode, namecap, capfolder, capurl):
                 pagefile=getcontentfiledir(namecap, capfolder, numpage)
                 if verifpath(pagefile, 0)==1:
                     pgdata=getinfo(pgurl, 'contentpagesclass', 'contentpagesextainfo', 'firstcontentfilter', 'secondcontentfilter')
-                    if pagesurl==10:
+                    if pgdata==-10:
 
                         return -10
                     pgdata=pgdata.content
