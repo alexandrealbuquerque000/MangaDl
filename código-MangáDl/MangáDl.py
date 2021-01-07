@@ -1002,7 +1002,10 @@ def onlineview(nametitle, numcap, htmlname, checkpoint, dircapcheckpoint, pagesi
             txtmsg=(('\n{}\n\nÚltimo {} {}: {}.').format(nametitle, msginfo1, msginfo2, numcap))
         updatearch(dircapcheckpoint, 'None')
         updatearch(dircapcheckpoint, txtmsg)
-    if countviewedcaps%5==0:
+     # Função opcional que permite perguntar periódicamente se o usuário deseja continuar lendo (Pode ser ativada apenas alterando o código fonte)
+    periodnum=5 # Coloque o valor numérico do perído em que deseja fazer a pergunta na variável 'periodnum'
+    readingmode=-1 # Para ativar a função coloque a variável 'readingmode' como sendo 0     
+    if countviewedcaps%periodnum==readingmode:
         updateglobalmsg((('Deseja continuar {}? ').format(msginfo3)))
         os.system('cls')
         updateglobalmsg(leiastr(askcontinueviewing))
