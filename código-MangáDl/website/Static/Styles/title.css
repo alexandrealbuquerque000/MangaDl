@@ -1,0 +1,17 @@
+.dropdown-menu.show {
+
+    display: grid; 
+    width: 130%;
+    margin-inline: -15%;
+
+                    }   
+#Submit {
+
+    display: none; 
+
+        }
+#dir {
+
+    display: none; 
+
+        }

@@ -1,0 +1,53 @@
+
+{% extends 'base.html' %} 
+
+{% block title %}
+{{Title.Name}}
+{% endblock %} 
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='Styles/title.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/css/bootstrap-select.min.css">
+{% endblock %}  
+
+{% block content%}
+<h2 align="center">{{Title.Name}}</h2>
+<p>{{Title.Description}}</p>
+<form method="POST" id="test">
+    <input type="file" id="dir" name="dir" webkitdirectory directory multiple/>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="switcher" name="switcher" value="True">
+        <label class="form-check-label" for="switcher">Baixar</label>
+    </div>
+    <div class="form-check">
+        {% if Title in Favorites %}
+        <input class="form-check-input" type="checkbox" id="check_box" name="check_box" value=this.checked checked>
+        {% else %}
+        <input class="form-check-input" type="checkbox" id="check_box" name="check_box" value=this.checked>
+        {% endif %}
+        <label class="form-check-label" for="check_box">Favorito</label>
+    </div>
+    <div id="search_box" class="form-group" align="center">
+        <label for="username">Choose a content</label>
+        <select class="selectpicker" data-size="10" id="search" name="search" title="Empty" data-live-search="true" data-live-search-placeholder="Search" data-max-options="1" data-selected-text-format="count" required multiple>
+            {% if Last_Access %}
+            <option id="Last_Access" value="{{Last_Access.id}}" data-subtext="{{Last_Access.Name}}" >Last Access</option>
+            {% endif %}
+            {% set contents = Title.Backref.all()%}
+            {% if Title.Ower.Name=='Mangá Host' %}
+            {{ contents.reverse() }}
+            {% endif %}
+            {% for content in contents %}  
+            <option value="{{content.id}}" >{{content.Name}}</option>   
+            {% endfor %}
+        </select>
+        <button id="Submit" type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>
+{% endblock %} 
+
+{% block scripts %}
+<script type="text/javascript" src="{{ url_for('static', filename='Scripts/title.js') }}" ></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/bootstrap-select.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/i18n/defaults-*.min.js"></script>
+{% endblock %}

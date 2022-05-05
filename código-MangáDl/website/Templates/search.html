@@ -1,0 +1,56 @@
+
+{% extends 'base.html' %} 
+
+{% block title %}
+Search
+{% endblock %} 
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='Styles/search.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/css/bootstrap-select.min.css">
+{% endblock %} 
+
+{% block content%}
+<h2 align="center">Search</h2>
+<form method="POST">
+    <div id="search_box" class="form-group" align="center">
+        <label for="search">Choose a title:</label>
+        <select class="selectpicker" data-size="10" id="search" name="search" title="Empty" data-live-search="true" data-live-search-placeholder="Search" data-actions-box="true" required>
+
+            {% for type in types%}
+            <optgroup label="{{type}}">
+                {% for server in Servers_List %}
+                {% if server.Type == type%}
+                {% for favorite in Favorites %}
+                {% if favorite.Ower == server%}
+                <option value="{{favorite.id}}" data-subtext="{{favorite.Ower.Name}}">Favorito: {{favorite.Name}}</option>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% endfor %}
+            </optgroup>
+            {% endfor %}
+
+            {% for type in types%}
+            <optgroup label="{{type}}">
+              {% for server in Servers_List %}
+              {% if server.Type == type%}
+              {% for title in server.Backref%}
+              <option value="{{title.id}}" data-subtext="{{server.Name}}">{{title.Name}}</option>
+              {% endfor %}
+              {% endif %}
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+            
+        </select>
+        <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i></button>
+    </div>
+</form>
+{% endblock %} 
+
+{% block scripts %}
+<script type="text/javascript" src="{{ url_for('static', filename='Scripts/search.js') }}" ></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/bootstrap-select.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.14/dist/js/i18n/defaults-*.min.js"></script>
+{% endblock %}

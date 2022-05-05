@@ -1,0 +1,37 @@
+
+{% extends 'base.html' %} {% block title %}{{Content.Name}}{% endblock %} 
+
+{% block styles %}
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='Styles/content.css') }}">
+{% endblock %} 
+
+{% block content%}
+
+<h2 align="center">{{Content.Name}}</h2>
+<div class="contents" align="center">
+    {% for subcontent in Content.Backref %}
+    {% if Content.Ower.Ower.Type in ['Mangás', 'Quadrinhos'] %}
+    <img rel="preload" src= "{{subcontent.URL}}" alt="{{ subcontent.Name }}" />
+    {% else %}
+    <video poster="https://eskipaper.com/images/nerd-wallpaper-8.jpg" rel="preload" controls="controls" src= "{{subcontent.URL}}" alt="{{ subcontent.Name }}" ></video>
+    {% endif %}
+    {% endfor %}
+</div>
+<ul class="pager">
+    {% if previous_content %}
+    <li><a href="{{ previous_content }}"><i class="fa fa-angle-left"></i></a></li>
+    {% endif %}
+    <li><a href="{{ title_page }}"><i class='fa fa-reorder'></i></a></li>
+    {% if next_content %}
+    <li><a href="{{ next_content }}"><i class="fa fa-angle-right"></i></a></li>
+    {% endif %}
+</ul>
+<p>Alemaquirque</p>
+{% endblock %} 
+
+{% block scripts %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='Scripts/content.js') }}" ></script>
+{% endblock %}

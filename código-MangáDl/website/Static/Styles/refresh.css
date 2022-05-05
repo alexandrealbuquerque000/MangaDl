@@ -1,0 +1,13 @@
+.dropdown-menu.show {
+
+    display: grid; 
+    width: 130%;
+    margin-inline: -15%;
+
+                    }   
+
+#loading_image  {
+
+    display: none;
+
+                }
