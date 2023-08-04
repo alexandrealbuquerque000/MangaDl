@@ -3,36 +3,49 @@ import os
 from pathlib import Path
 import time
 import copy
+from unidecode import unidecode
+from tkinter import Tk
 from .preset_data import keys, values
 import requests
-# from selenium.webdriver import Edge
 from msedge.selenium_tools import EdgeOptions, Edge
-from selenium.webdriver.edge.service import Service
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.edge.options import Options
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 import re # Para filtrar a busca de títulos
 from bs4 import BeautifulSoup # Para manipular e guardar dados obtidos do site
 from flask import session
 
+
 # Função para obter informações de todas as requisições feitas pelo programa
-def getinfo(site, current_server, classinfo, extrainfo, firstfilter, secondfilter):
+def getinfo(site, current_server, classinfo=None, extrainfo=None, firstfilter=None, secondfilter=None):
 
 
     def by_webdriver(site):
         
         options = EdgeOptions()
         options.use_chromium = True
-        options.headless = False
+        options.headless = True
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         driver = Edge(EdgeChromiumDriverManager(log_level=0, print_first_line=False).install(), options = options)
         driver.get(site)
+
+        if [current_server.Name, current_server.Type] in [['BR Mangás', 'Mangás']]:
+            for option in driver.find_elements_by_tag_name('option'):
+                if option.text == 'Páginas abertas':
+                    option.click()
+                    break
         
         return driver
       
+
+    # Função para ajustar URL caso incompleta
+    def thirdfilter(url):
+        if url!=None and url!='':
+            if url.startswith('/'):
+                url=current_server.Config['basesite']+url.lstrip('/')
+
+            return url
+
+        return 0
+
 
     # Função para verificar a utilização de um comando
     def verifstep(step):
@@ -41,19 +54,6 @@ def getinfo(site, current_server, classinfo, extrainfo, firstfilter, secondfilte
                 step=None
             
             return step
-
-        return 0
-
-
-    # Função para ajustar URL caso incompleta
-    def thirdfilter(url):
-        if url!=None:
-            if '/' in url:
-                basesite=current_server.Config['basesite']
-                if all(url.startswith(index)==False for index in ['http', basesite]):
-                    url=basesite+(url.lstrip('/'))
-
-                return url
 
         return 0
 
@@ -71,46 +71,38 @@ def getinfo(site, current_server, classinfo, extrainfo, firstfilter, secondfilte
 
         return exactinfo.strip()
 
-    '''
-    
-    PÁGINA 30 DO MANGÁ HOST ESTÁ DANDO ERRO, CONFERIR DPS ERRO 403
-    #####################
-    #####################
-    '''
-
+    site=thirdfilter(site)
+    headers={'User-agent': 'Mozilla/5.0'}
     rqsttime=0
     while True:
         time.sleep(rqsttime)
         try:
-            site=thirdfilter(site)
-            print(site)
-            ### se ficar lento bota dtream=False###3
-
+            #   Se ficar lento colocar "stream=False"  #
+            response = requests.get(site, stream=True, headers=headers)
             if classinfo=='pagescapclass':
-                response = by_webdriver(site)
-                page_text=response.page_source
+                page_text=by_webdriver(site).page_source
             else:
-                response = requests.get(site, stream=True, headers={'User-agent': 'Mozilla/5.0'})
                 page_text=response.text
-            # response = requests.get(site, headers={'User-agent': 'Mozilla/5.0'})
+
         except requests.RequestException as error: 
-            # seterrormsg('\nOcorreu um erro: '+ str(error))
-            # time.sleep(1.25)
+            session['Error']=1
+            print('\nOcorreu um erro: '+ str(error))
+            time.sleep(1.25)
 
             return -10
-        if requests.get(site, stream=True, headers={'User-agent': 'Mozilla/5.0'}).status_code==200:
+        if response.status_code==200:
+            if current_server=='Download':
+
+                return response
             firstfilter=verifstep(current_server.Config[firstfilter])
             secondfilter=verifstep(current_server.Config[secondfilter])
             verifclassname=classinfo
-            if verifclassname=='contentpagesclass':
-
-                return response
             classinfo=verifstep(current_server.Config[classinfo])
             extrainfo=verifstep(current_server.Config[extrainfo])
             
             soup = BeautifulSoup(page_text, 'html.parser')
             if firstfilter!=0:
-                soup=soup.find(firstfilter)
+                soup=soup.find(class_=firstfilter)
             if classinfo!=0 and extrainfo!=0:
                 allinfo=soup.find_all(extrainfo, class_=classinfo)
             else:
@@ -119,36 +111,31 @@ def getinfo(site, current_server, classinfo, extrainfo, firstfilter, secondfilte
                 else:
                     allinfo=soup.find_all(extrainfo)
             listinfo=[]
-            temp=0
-            print(allinfo)
             for info in allinfo:
                 if secondfilter!=0:
                     info=info.find(secondfilter)
                 if info!=None:
                     if verifclassname=='titlesandlinksclass':
-                        titlesgturl=get(current_server.Config['titlesgturl'])+current_server.Config['addtitleurl']
-                        titlesgturl=thirdfilter(titlesgturl)
+                        titlesgturl=thirdfilter(get(current_server.Config['titlesgturl']))
                         titlesgtname=get(current_server.Config['titlesgtname'])
-                        if len(titlesgtname)<=1:
-                                titlesgturl=0
+                        if current_server.Name=='BR Mangás':
+                            titlesgtname=titlesgtname.rsplit('Online', 1)[0]
                         if titlesgturl!=0:
-                            titlesgtname=titlesgtname.strip('\n')
+                            titlesgtname=titlesgtname.rstrip('.')
                             titlesgtname=re.sub(r'[:*?"><|/\\]', ' ', titlesgtname).strip()
                             listinfo.append({'Name': titlesgtname, 'URL': titlesgturl})
                     elif verifclassname=='capsnamesandidsclass':
-                        capsgturl=get(current_server.Config['capsgturl'])+current_server.Config['addcappageeurl']
+                        capsgturl=thirdfilter(get(current_server.Config['capsgturl']))
                         capsgtname=get(current_server.Config['capsgtname'])
-                        if len(capsgtname)<=1:
-                                capsgturl=0
+                        if current_server.Name=='See Mangas':
+                            capsgtname=capsgtname.replace('Ler ', '', 1)
+                        elif current_server.Name=='Golden Mangás':
+                            capsgtname=capsgtname.replace('Cap', 'Capítulo', 1)
+                        elif current_server.Name=='Kissmanga':
+                            capsgtname=capsgtname.split('-\n', 1)[-1]
                         if capsgturl!=0:
-                            capsgtname=capsgtname.strip('\n').strip()
+                            capsgtname=capsgtname.rstrip('.')
                             capsgtname=re.sub(r'[:*?"><|/\\]', ' ', capsgtname).strip()
-                            if [current_server.Name, current_server.Type] in [['Animes Online GG', 'Animes'], ['Animes Online', 'Animes']]:
-                                if capsgtname=='Episódio 1':
-                                    temp+=1
-                                capsgtname='Temp {} - {}'.format(temp, capsgtname)
-                            if [current_server.Name, current_server.Type]==['Mangá Host', 'Mangás']:
-                                capsgturl=site+'/{}'.format(capsgturl)
                             listinfo.append({'Name': capsgtname, 'URL': capsgturl})
                     elif verifclassname=='descriptionclass':
                         description=get(current_server.Config['descriptiontxt'])
@@ -160,32 +147,31 @@ def getinfo(site, current_server, classinfo, extrainfo, firstfilter, secondfilte
                     elif verifclassname=='numcappgsclass':
                         listinfo.append(get(current_server.Config['cappgsgtnum']))
                     elif verifclassname=='pagescapclass':
-                        pgsgturl=get(current_server.Config['pgsgturl'])
-                        listinfo.append({'URL': pgsgturl})
+                        pgsgturl=thirdfilter(get(current_server.Config['pgsgturl']))
+                        if current_server.Name=='Kissmanga' and pgsgturl.startswith(current_server.Config['basesite']):
+                            pgsgturl=0
+                        if pgsgturl!=0:
+                            listinfo.append({'URL': pgsgturl})
                     else:
                         listinfo.append([get('text')])
-        
+            if current_server.Name=='Mangás Chan' and verifclassname=='pagescapclass':
+                listinfo=[{'URL': str(u+1)+'.'+listinfo[-1]['URL'].split('/')[-1].split('.')[-1]} for u in range(int(listinfo[-1]['URL'].split('/')[-1].split('.')[0]))]
+
+            response.close()
             return listinfo
 
-        elif response.status_code in range(401, 451):
-            session['Error']=1
+        else:
             if rqsttime<=3:
-                rqsttime+=0.25
+                rqsttime+=1
                 continue
 
             return -100
-        else:
-            print('\nOcorreu um erro: '+str(response.status_code))
-            time.sleep(1.25)
-        
-            return -10
+  
 
  # Função para obter determinadas informações de todo o site
 def getallinfolinks(Table, Ower_Table, pginf1):
 
     
-    allinfolist=[]
-    verifnumwebpages=[]
     Table_Name=Table.__tablename__
     current_server=Ower_Table
     if Ower_Table == None:
@@ -209,27 +195,28 @@ def getallinfolinks(Table, Ower_Table, pginf1):
                     site_keys=('pagescapclass', 'cappagesextrainfo', 'firstpgscapfilter', 'secondpgscapfilter')
                 pginf6, pginf7, pginf8, pginf9=site_keys
                 break
+        allinfolist=[]
+        verifnumwebpages=None
         lastpage=0
-        pagenum=-1
         while True:
             lastpage+=1
             site=pginf1.format(lastpage)
-            if lastpage==1 and pginf6=='capsnamesandidsclass':
+            if Table_Name=='contents':
                 description=getinfo(site, current_server, 'descriptionclass', 'descriptionextrainfo', 'firstdescriptionfilter', 'seconddescriptionfilter')
                 if description!=-10:
                     Update(Ower_Table, description[0])
             numwebpagestest1=getinfo(site, current_server, pginf6, pginf7, pginf8, pginf9)
-            print('result')
-            print((numwebpagestest1))
             if numwebpagestest1==-10:
             
                 return -10
-            if numwebpagestest1==-100 or numwebpagestest1==verifnumwebpages or len(numwebpagestest1)==0:
-                if [current_server.Name, current_server.Type] in [['Mangá Host', 'Mangás'], ['Animes Zone', 'Animes']] and numwebpagestest1==-100:
-                    continue
-                break
-            verifnumwebpages=copy.deepcopy(numwebpagestest1)
-            if pginf6=='pagescapclass':
+            if Table_Name=='titles':
+                if numwebpagestest1==-100 or len(numwebpagestest1)==0 or numwebpagestest1==verifnumwebpages:
+                    if current_server.Name=='Kissmanga' and numwebpagestest1==-100:
+                        continue
+                    break
+                verifnumwebpages=copy.deepcopy(numwebpagestest1)
+            if Table_Name=='subcontents':
+                pagenum=0
                 for item in numwebpagestest1:
                     if current_server.Type in ['Quadrinhos', 'Mangás']: 
                         typesubcontent='Página'
@@ -237,8 +224,14 @@ def getallinfolinks(Table, Ower_Table, pginf1):
                         typesubcontent='Vídeo'
                     pagenum+=1
                     item.update({'Name': '{}_{}'.format(typesubcontent, pagenum)})
+                    if current_server.Name=='Mangás Chan':
+                        title=re.sub(r'[.,"\'?:!;]', '', unidecode(Ower_Table.Ower.Name.splitlines()[0])).replace(' ', '-').lower()
+                        cap=re.sub(r'[.,"\'?:!;]', '', unidecode(Ower_Table.Name.splitlines()[0])).replace(' ', '-').lower()
+                        item.update({'URL': 'https://img.mangaschan.com/uploads/manga-images/{}/{}/{}/{}'.format(title[0],title,cap,item['URL'])})
             Added_Content=add_data(Table, Ower_Table.id, numwebpagestest1)
             allinfolist.extend(Added_Content)
+            if Table_Name!='titles':
+                break
         DelDescendants(Table, {'Ower_id': Ower_Table.id}, allinfolist)
     
 def Update(Table_Query, New_Content):
@@ -330,6 +323,7 @@ def add_data(Table, Ower_id, ContentList):
     
  # Função para verificar existência de pasta ou arquivo
 def verifpath(dirp, mode):
+
     if (os.path.exists(dirp))==True:
         if mode==0:
 
@@ -347,16 +341,14 @@ def verifpath(dirp, mode):
 def gethqpath():
 
 
-    # root = tkinter.Tk()
-    # root.geometry('0x0')
+    root = Tk()
+    root.geometry('0x0')
     hqpathchoose=('Selecione o diretório da pasta que deseja guardar todos os conteúdos escolhidos: ')
     hqpathstr=hqpathchoose.replace('Selecione', '\nDigite')
-    # print('\n'+hqpathchoose)
-    # hqpath = tf.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
-    # root.destroy()       
+    print('\n'+hqpathchoose)
+    hqpath = tf.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
+    root.destroy()       
 
-
-    hqpath=os.getcwd()
     if hqpath=='':
         print('\nOpção cancelada.\n\nTente novamente')
         hqpath=input(hqpathstr)
@@ -391,24 +383,27 @@ def downloader(Table, dir):
     session['Downloads'].update({Table.Name:True})
 
     content_dir=verifpath(os.path.join(title_dir, Table.Name), 1)
-    getallinfolinks(Subcontents, Table, Table.URL)
-    print('Baixando'+Table.Name)   
-    print(content_dir)
-    for subcontent in Table.Backref:
-        subcontent__name=subcontent.Name+'.png'
-        subcontent_dir=os.path.join(content_dir, subcontent__name)
-        if verifpath(subcontent_dir, 0)==False:
-            subcontent_url=subcontent.URL
-            print(subcontent_url)
-            subcontent_data=getinfo(subcontent_url, server_table, 'contentpagesclass', 'contentpagesextainfo', 'firstcontentfilter', 'secondcontentfilter')
-            if subcontent_data==-10:
-                input('erro!')
-            print(subcontent_data)
-            with open(subcontent_dir, 'wb') as file:
-                file.write(subcontent_data.content)
-                file.close()
-            print(subcontent_dir)
+    if verifpath(content_dir+'.zip', 0)==False:
+        getallinfolinks(Subcontents, Table, Table.URL)
+        print('\nBaixando: {}\n'.format(Table.Name))   
+        for subcontent in Table.Backref:
+            subcontent__name=subcontent.Name+'.png'
+            subcontent_dir=os.path.join(content_dir, subcontent__name)
+            if verifpath(subcontent_dir, 0)==False:
+                subcontent_url=subcontent.URL
+                print(subcontent_url)
+                subcontent_data=getinfo(subcontent_url, 'Download')
+                if type(subcontent_data)==int:
+                  
+                    return -10
+                print(subcontent_data)
+                with open(subcontent_dir, 'wb') as file:
+                    file.write(subcontent_data.content)
+                    file.close()
+                print(subcontent_dir, end='\n')
+
     if server_table.Type in ['Quadrinhos', 'Mangás']:
+        print('Convertendo {} para .cbz\n'.format(Table.Name))
         cbzconvert(content_dir)
     session['Downloads'].update({Table.Name:False})
  # Função para converter arquivos em '.cbz'
@@ -460,4 +455,4 @@ def cbzconvert(content_dir):
         verifzip=ziparchs()
     if verifzip!=-10:
         renameext()
-    print('done')
+    print('Concluído!')
