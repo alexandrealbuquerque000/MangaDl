@@ -1,18 +1,12 @@
-
-
-import asyncio
-from msilib import Table
-import time
-from xmlrpc.client import boolean
-from .Functions import Get_ExactTable, add_data, verifpath
+from .Functions import Get_ExactTable, add_data
 from flask import Blueprint, render_template, request, flash, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import Titles, Users, Servers, Contents, Subcontents
-from .Functions import  getallinfolinks, Update, downloader
+from .Functions import  getallinfolinks, downloader
 from . import db
-import threading
 import os
 from flask_login import login_user, login_required, logout_user, current_user
+
 auth = Blueprint('auth', __name__)
 
 # @auth.route('/error', methods=['GET', 'POST'])
@@ -72,13 +66,11 @@ def title(Categoria, Servidor, Title):
         if favorito:
             Favorites.append(title_table)
             db.session.commit()
-        baixar=request.form.get('switcher', type=bool)
         contents=request.form.getlist('search', type=Contents.query.get)
-        dir = request.form.get('dir')
+        baixar=request.form.get('switcher', type=bool)
+        dir = request.form.get('dir', os.getcwd())
+        input(dir)
 ###não consigo pegar uma pastaaaaa
-        print(dir)
-        dir = verifpath(os.path.join(os.getcwd(), '/TESTE'), 1) 
-   
         for content in contents:
             if baixar:   
                 downloader(content, dir)
@@ -90,8 +82,8 @@ def title(Categoria, Servidor, Title):
             return redirect(url_for('auth.search'))
         titleurl=title_table.URL
         getallinfolinks(Contents, title_table, titleurl)
-
-    return render_template('title.html', user=current_user, Title=title_table, Favorites=Favorites, Last_Access=Last_Access)
+    
+    return render_template('title.html', user=current_user, Title=title_table, Favorites=Favorites, Last_Access=Last_Access, Test=Test)
 
 
 @auth.route('/<Categoria>/<Servidor>/<Title>/<Content>', methods=['GET', 'POST'])

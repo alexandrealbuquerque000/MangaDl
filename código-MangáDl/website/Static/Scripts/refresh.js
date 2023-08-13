@@ -12,6 +12,4 @@ function loading() {
 
                     }
 
-
-
 // $('.selectpicker').selectpicker('refresh'); usar depopisssssss

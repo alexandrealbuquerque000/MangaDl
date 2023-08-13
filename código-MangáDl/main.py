@@ -14,4 +14,5 @@ if __name__ == '__main__':
     if not os.environ.get("WERKZEUG_RUN_MAIN"):
 
         webbrowser.open('http://{}:{}/'.format(host, port))
+        
     app.run(host=host, port=port, debug=False)

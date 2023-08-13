@@ -1,13 +1,16 @@
 .dropdown-menu.show {
 
-    display: grid; 
-    width: 130%;
-    margin-inline: -15%;
-
+    display: grid;
+    
                     }   
 
 #loading_image  {
-
-    display: none;
-
+    display: none; 
+    height: auto; 
+    width: auto; 
+    max-width: 150px; 
+    max-height: 150px;
+    margin: 5%;
+    content: url(https://th.bing.com/th/id/R.d6cd5151c04765d1992edfde14483068?rik=RRHcWY9w0PtzlA&pid=ImgRaw&r=0);
+    
                 }

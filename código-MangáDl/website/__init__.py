@@ -2,10 +2,15 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from .Functions import verifpath, Get_ExactTable
+import os
 
 db = SQLAlchemy()
 DB_DIR = 'database.db'
 
+
+#Apenas enquanto teste!
+DB_DIR = os.path.join(os.path.expanduser("~/Desktop"), DB_DIR)
+#
 
 def create_app():
 

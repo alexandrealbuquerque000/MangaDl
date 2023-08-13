@@ -171,7 +171,6 @@ def getinfo(site, current_server, classinfo=None, extrainfo=None, firstfilter=No
  # Função para obter determinadas informações de todo o site
 def getallinfolinks(Table, Ower_Table, pginf1):
 
-    
     Table_Name=Table.__tablename__
     current_server=Ower_Table
     if Ower_Table == None:
@@ -304,8 +303,7 @@ def add_data(Table, Ower_id, ContentList):
                 dbcontent.update({'Ower_id': Ower_id})
 
                 
-            # TA DANDO ESSE ERROOOOOOO sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) attempt to write a readonly database
-
+# TA DANDO ESSE ERROOOOOOO sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) attempt to write a readonly database
 
 
             db.session.execute(db.insert(Table).values(**dbcontent))
@@ -340,7 +338,6 @@ def verifpath(dirp, mode):
 # Função para obter o diretório central de destino dos arquivos
 def gethqpath():
 
-
     root = Tk()
     root.geometry('0x0')
     hqpathchoose=('Selecione o diretório da pasta que deseja guardar todos os conteúdos escolhidos: ')
@@ -357,13 +354,6 @@ def gethqpath():
         hqpath=input(hqpathstr)
     
     return hqpath
-
-
-
-
-
-
-
 
 # Função para carregar continuamente os dados que serão utilizados 
 def downloader(Table, dir):
