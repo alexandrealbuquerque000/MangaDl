@@ -2,7 +2,7 @@ from .Functions import Get_ExactTable, add_data
 from flask import Blueprint, render_template, request, flash, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import Titles, Users, Servers, Contents, Subcontents
-from .Functions import  getallinfolinks, downloader
+from .Functions import  getallinfolinks, downloader, gethqpath
 from . import db
 import os
 from flask_login import login_user, login_required, logout_user, current_user
@@ -24,20 +24,18 @@ def downloads():
 @auth.route('/refresh', methods=['GET', 'POST'])
 @login_required
 def refresh():
-    Servers_List=Get_ExactTable(Servers, {})
-    types=list(set([server.Type for server in Servers_List]))
+    Servers_List=Get_ExactTable(Servers)
     getallinfolinks(Servers, None, None)
     if request.method == 'POST':
         for server in request.form.getlist('search', type=Servers.query.get):
            
             getallinfolinks(Titles, server, server.Config['pagessite'])
-    return render_template('refresh.html', user=current_user, Servers_List=Servers_List, types=types)
+    return render_template('refresh.html', user=current_user, Servers_List=Servers_List)
 
 @auth.route('/search', methods=['GET', 'POST'])
 @login_required
 def search():
-    Servers_List=Get_ExactTable(Servers, {})
-    types=list(set([server.Type for server in Servers_List]))
+    Servers_List=Get_ExactTable(Servers)
     Favorites = current_user.Favorites
     if request.method == 'POST':
         Title=request.form.get('search', type=Titles.query.get)
@@ -46,15 +44,15 @@ def search():
             flash('Nenhuma opção foi selecionada.', category='error')
         else:
     
-            return redirect(url_for('auth.title', Categoria=Title.Ower.Type, Servidor=Title.Ower.Name, Title=Title.Name))
+            return redirect(url_for('auth.title', Servidor=Title.Ower.Name, Title=Title.Name))
     
-    return render_template('search.html', user=current_user, Servers_List=Servers_List, types=types, Favorites=Favorites)
+    return render_template('search.html', user=current_user, Servers_List=Servers_List, Favorites=Favorites)
 
-@auth.route('/<Categoria>/<Servidor>/<Title>', methods=['GET', 'POST'])
+@auth.route('/<Servidor>/<Title>', methods=['GET', 'POST'])
 @login_required
-def title(Categoria, Servidor, Title):
+def title(Servidor, Title):
 
-    server_table=Get_ExactTable(Servers, {'Name':Servidor, 'Type':Categoria}).first()
+    server_table=Get_ExactTable(Servers, {'Name':Servidor}).first()
     title_table = Get_ExactTable(Titles, {'Name':Title, 'Ower': server_table}).first()
     Favorites = current_user.Favorites
     Last_Access = current_user.Checkpoints.filter_by(Ower=title_table).first()
@@ -68,14 +66,10 @@ def title(Categoria, Servidor, Title):
             db.session.commit()
         contents=request.form.getlist('search', type=Contents.query.get)
         baixar=request.form.get('switcher', type=bool)
-        dir = request.form.get('dir', os.getcwd())
-        input(dir)
-###não consigo pegar uma pastaaaaa
-        for content in contents:
-            if baixar:   
-                downloader(content, dir)
-            else:
-                return redirect(url_for('auth.content', Categoria=server_table.Type, Servidor=server_table.Name, Title=title_table.Name, Content=content.Name))
+        if baixar:   
+            downloader(contents, gethqpath())
+        else:
+            return redirect(url_for('auth.content', Servidor=server_table.Name, Title=title_table.Name, Content=contents[0].Name)) 
     else:
         if title_table==None:
 
@@ -83,33 +77,27 @@ def title(Categoria, Servidor, Title):
         titleurl=title_table.URL
         getallinfolinks(Contents, title_table, titleurl)
     
-    return render_template('title.html', user=current_user, Title=title_table, Favorites=Favorites, Last_Access=Last_Access, Test=Test)
+    return render_template('title.html', user=current_user, Title=title_table, Favorites=Favorites, Last_Access=Last_Access)
 
 
-@auth.route('/<Categoria>/<Servidor>/<Title>/<Content>', methods=['GET', 'POST'])
+@auth.route('/<Servidor>/<Title>/<Content>', methods=['GET', 'POST'])
 @login_required
-def content(Categoria, Servidor, Title, Content):
+def content(Servidor, Title, Content):
     
-    server_table=Get_ExactTable(Servers, {'Name':Servidor, 'Type':Categoria}).first()
+    server_table=Get_ExactTable(Servers, {'Name':Servidor}).first()
     title_table = Get_ExactTable(Titles, {'Name':Title, 'Ower': server_table}).first()
-    title_page=url_for('auth.title', Categoria=server_table.Type, Servidor=server_table.Name, Title=title_table.Name)
+    title_page=url_for('auth.title', Servidor=server_table.Name, Title=title_table.Name)
     contents=title_table.Backref.all()
-    
-    ### GAMBIARRA
-
-    if server_table.Name in ('Manga Katana', 'Golden Mangás'):
-        contents.reverse()
-  
     content_table = Get_ExactTable(Contents, {'Name':Content, 'Ower': title_table}, 'Name').first()
     if content_table==None:
 
-        return redirect(url_for('auth.title', Categoria=Categoria, Servidor=Servidor, Title=Title))
+        return redirect(url_for('auth.title', Servidor=Servidor, Title=Title))
     content_index=contents.index(content_table)
     previous_content=next_content=None
     if content_index>0:
-        previous_content=url_for('auth.content', Categoria=server_table.Type, Servidor=server_table.Name, Title=title_table.Name, Content=contents[content_index-1].Name)
+        previous_content=url_for('auth.content', Servidor=server_table.Name, Title=title_table.Name, Content=contents[content_index-1].Name)
     if content_index<len(contents)-1:
-        next_content=url_for('auth.content', Categoria=server_table.Type, Servidor=server_table.Name, Title=title_table.Name, Content=contents[content_index+1].Name)
+        next_content=url_for('auth.content', Servidor=server_table.Name, Title=title_table.Name, Content=contents[content_index+1].Name)
     getallinfolinks(Subcontents, content_table, content_table.URL)
     for checkpoint in current_user.Checkpoints.filter_by(Ower=title_table):
         current_user.Checkpoints.remove(checkpoint)

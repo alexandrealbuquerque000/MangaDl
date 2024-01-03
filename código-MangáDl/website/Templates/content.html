@@ -11,11 +11,7 @@
 <h2 align="center">{{Content.Name}}</h2>
 <div class="contents" align="center">
     {% for subcontent in Content.Backref %}
-    {% if Content.Ower.Ower.Type in ['Mangás', 'Quadrinhos'] %}
     <img src="{{ subcontent.URL }}" alt="{{ subcontent.Name }}" />
-    {% else %}
-    <video poster="https://eskipaper.com/images/nerd-wallpaper-8.jpg" rel="preload" controls="controls" src= "{{ subcontent.URL }}" alt="{{ subcontent.Name }}" ></video>
-    {% endif %}
     {% endfor %}
 </div>
 <ul class="pager">

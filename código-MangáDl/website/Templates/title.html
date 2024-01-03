@@ -14,7 +14,6 @@
 <h2 align="center">{{Title.Name}}</h2>
 <p>{{Title.Description}}</p>
 <form method="POST" id="test">
-    <input type="file" id="dir" name="dir" webkitdirectory directory multiple/>
     <div class="form-check form-switch">
         <input class="form-check-input" type="checkbox" id="switcher" name="switcher" value="True">
         <label class="form-check-label" for="switcher">Baixar</label>
@@ -33,11 +32,7 @@
             {% if Last_Access %}
             <option id="Last_Access" value="{{Last_Access.id}}" data-subtext="{{Last_Access.Name}}" >Last Access</option>
             {% endif %}
-            {% set contents = Title.Backref.all()%}
-            {% if Title.Ower.Name=='Mangá Host' %}
-            {{ contents.reverse() }}
-            {% endif %}
-            {% for content in contents %}  
+            {% for content in Title.Backref.all() %}  
             <option value="{{content.id}}" >{{content.Name}}</option>   
             {% endfor %}
         </select>

@@ -19,7 +19,6 @@ class Users(db.Model, UserMixin):
 class Servers(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     Name = db.Column(db.String)
-    Type = db.Column(db.String)
     Config = db.Column(db.JSON, nullable=True)
 
 class Titles(db.Model, UserMixin):

@@ -19,7 +19,6 @@ document.getElementById('switcher').onclick = function() {
     if ( this.checked ) {
         
         document.getElementById('Submit').style.display= 'inline-flex'
-        document.getElementById('dir').style.display= 'inline-flex'
         document.getElementById('Last_Access').style.display= 'none'
         
         $('#search').data('max-options', false);
@@ -34,7 +33,6 @@ document.getElementById('switcher').onclick = function() {
     } else {
         
         document.getElementById('Submit').style.display= 'none'
-        document.getElementById('dir').style.display= 'none'
         document.getElementById('Last_Access').style.display= 'inline-flex'
 
         $('#search').data('max-options', 1);

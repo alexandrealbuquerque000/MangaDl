@@ -4,10 +4,12 @@ from pathlib import Path
 import time
 import copy
 from unidecode import unidecode
-from tkinter import Tk
+from tkinter import Tk, filedialog
 from .preset_data import keys, values
 import requests
-from msedge.selenium_tools import EdgeOptions, Edge
+from selenium.webdriver import Edge, EdgeOptions
+from selenium.webdriver.edge.service import Service
+from selenium.webdriver.common.by import By
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 import re # Para filtrar a busca de títulos
 from bs4 import BeautifulSoup # Para manipular e guardar dados obtidos do site
@@ -21,14 +23,13 @@ def getinfo(site, current_server, classinfo=None, extrainfo=None, firstfilter=No
     def by_webdriver(site):
         
         options = EdgeOptions()
-        options.use_chromium = True
         options.headless = True
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        driver = Edge(EdgeChromiumDriverManager(log_level=0, print_first_line=False).install(), options = options)
+        driver = Edge(service=Service(EdgeChromiumDriverManager(log_level=0, print_first_line=False).install()), options = options)
         driver.get(site)
 
-        if [current_server.Name, current_server.Type] in [['BR Mangás', 'Mangás']]:
-            for option in driver.find_elements_by_tag_name('option'):
+        if current_server.Name=='BR Mangás':
+            for option in driver.find_elements(By.TAG_NAME, 'option'):
                 if option.text == 'Páginas abertas':
                     option.click()
                     break
@@ -120,22 +121,20 @@ def getinfo(site, current_server, classinfo=None, extrainfo=None, firstfilter=No
                         titlesgtname=get(current_server.Config['titlesgtname'])
                         if current_server.Name=='BR Mangás':
                             titlesgtname=titlesgtname.rsplit('Online', 1)[0]
+                        titlesgtname=titlesgtname.rstrip('.')
+                        titlesgtname=re.sub(r'[:*?"><|/\\]', ' ', titlesgtname).strip()
                         if titlesgturl!=0:
-                            titlesgtname=titlesgtname.rstrip('.')
-                            titlesgtname=re.sub(r'[:*?"><|/\\]', ' ', titlesgtname).strip()
                             listinfo.append({'Name': titlesgtname, 'URL': titlesgturl})
                     elif verifclassname=='capsnamesandidsclass':
                         capsgturl=thirdfilter(get(current_server.Config['capsgturl']))
                         capsgtname=get(current_server.Config['capsgtname'])
-                        if current_server.Name=='See Mangas':
-                            capsgtname=capsgtname.replace('Ler ', '', 1)
-                        elif current_server.Name=='Golden Mangás':
-                            capsgtname=capsgtname.replace('Cap', 'Capítulo', 1)
-                        elif current_server.Name=='Kissmanga':
-                            capsgtname=capsgtname.split('-\n', 1)[-1]
-                        if capsgturl!=0:
-                            capsgtname=capsgtname.rstrip('.')
-                            capsgtname=re.sub(r'[:*?"><|/\\]', ' ', capsgtname).strip()
+                        if current_server.Name=='Kissmanga':
+                            capsgtname=capsgtname.split('Chapter')[-1].split(":")[0]
+                        capsgtname=capsgtname.rstrip('.')
+                        capsgtname=re.sub(r'[:*?"><|/\\]', ' ', capsgtname).strip()
+                        capsgtname = [float(capnum) for capnum in capsgtname.split() if capnum.replace('.', '', 1).isdigit()]
+                        if len(capsgtname)!=0 and capsgturl!=0:
+                            capsgtname="Chapter {}".format(capsgtname[0])
                             listinfo.append({'Name': capsgtname, 'URL': capsgturl})
                     elif verifclassname=='descriptionclass':
                         description=get(current_server.Config['descriptiontxt'])
@@ -174,13 +173,12 @@ def getallinfolinks(Table, Ower_Table, pginf1):
     Table_Name=Table.__tablename__
     current_server=Ower_Table
     if Ower_Table == None:
-        for Type in values.items():
-            ContentList=[]
-            for Name in Type[1].items():
-                Config=dict(zip(keys, Name[1]))
-                Added_Content=add_data(Table, None, [{'Name': Name[0], 'Type': Type[0], 'Config':Config}])
-                ContentList.extend(Added_Content)
-            DelDescendants(Table, {'Type': Type[0]}, ContentList)
+        ContentList=[]
+        for Name in values.items():
+            Config=dict(zip(keys, Name[1]))
+            Added_Content=add_data(Table, None, [{'Name': Name[0], 'Config':Config}])
+            ContentList.extend(Added_Content)
+        DelDescendants(Table, ContentList)
     else:
         while True:
             if current_server.__tablename__!='servers':
@@ -217,12 +215,8 @@ def getallinfolinks(Table, Ower_Table, pginf1):
             if Table_Name=='subcontents':
                 pagenum=0
                 for item in numwebpagestest1:
-                    if current_server.Type in ['Quadrinhos', 'Mangás']: 
-                        typesubcontent='Página'
-                    else:
-                        typesubcontent='Vídeo'
                     pagenum+=1
-                    item.update({'Name': '{}_{}'.format(typesubcontent, pagenum)})
+                    item.update({'Name': 'Página_{}'.format(pagenum)})
                     if current_server.Name=='Mangás Chan':
                         title=re.sub(r'[.,"\'?:!;]', '', unidecode(Ower_Table.Ower.Name.splitlines()[0])).replace(' ', '-').lower()
                         cap=re.sub(r'[.,"\'?:!;]', '', unidecode(Ower_Table.Name.splitlines()[0])).replace(' ', '-').lower()
@@ -231,8 +225,9 @@ def getallinfolinks(Table, Ower_Table, pginf1):
             allinfolist.extend(Added_Content)
             if Table_Name!='titles':
                 break
-        DelDescendants(Table, {'Ower_id': Ower_Table.id}, allinfolist)
+        DelDescendants(Table, allinfolist, {'Ower_id': Ower_Table.id})
     
+
 def Update(Table_Query, New_Content):
     from . import db
     
@@ -247,9 +242,11 @@ def Update(Table_Query, New_Content):
         db.session.execute(db.update(Table).where(Table.c.id==Table_Query.id).values(**update_dict))
         db.session.commit() 
 
-def Get_ExactTable(Table, filters, order_by=None):
+
+def Get_ExactTable(Table, filters={}, order_by=None):
 
     return Table.query.order_by(order_by).filter_by(**filters)
+
 
 def GetRefList(Table):
     RefList=[]
@@ -263,7 +260,8 @@ def GetRefList(Table):
                 RefList.append(Backref)
     return RefList
 
-def DelDescendants(Table, filters, save_list):
+
+def DelDescendants(Table, save_list, filters={}):
     from . import db
 
     Del_Table=Get_ExactTable(Table, filters).filter(~(Table.id.in_(save_list)))
@@ -295,17 +293,12 @@ def add_data(Table, Ower_id, ContentList):
         if Table_Name=='users':
             queryinfo=Table.query.filter((Table.Name==dbcontent['Name']) & (Table.Password==dbcontent['Password']))
         elif Table_Name=='servers':
-            queryinfo=Table.query.filter((Table.Name==dbcontent['Name']) & (Table.Type==dbcontent['Type']))
+            queryinfo=Table.query.filter((Table.Name==dbcontent['Name']))
         else:
             queryinfo=Table.query.filter(((Table.Name==dbcontent['Name']) | (Table.URL==dbcontent['URL'])) & (Table.Ower_id==Ower_id))
         if len(queryinfo.all())==0:
             if Ower_id!=None:
                 dbcontent.update({'Ower_id': Ower_id})
-
-                
-# TA DANDO ESSE ERROOOOOOO sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) attempt to write a readonly database
-
-
             db.session.execute(db.insert(Table).values(**dbcontent))
             db.session.commit()
             queryinfo=queryinfo.first()
@@ -318,7 +311,6 @@ def add_data(Table, Ower_id, ContentList):
     return Added_Content
 
 
-    
  # Função para verificar existência de pasta ou arquivo
 def verifpath(dirp, mode):
 
@@ -343,7 +335,7 @@ def gethqpath():
     hqpathchoose=('Selecione o diretório da pasta que deseja guardar todos os conteúdos escolhidos: ')
     hqpathstr=hqpathchoose.replace('Selecione', '\nDigite')
     print('\n'+hqpathchoose)
-    hqpath = tf.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
+    hqpath = filedialog.askdirectory(parent=root, initialdir="/",title =hqpathchoose)
     root.destroy()       
 
     if hqpath=='':
@@ -356,46 +348,44 @@ def gethqpath():
     return hqpath
 
 # Função para carregar continuamente os dados que serão utilizados 
-def downloader(Table, dir):
+def downloader(contents, dir):
     from .models import Subcontents
 
-    title_table=Table.Ower
-    server_table=title_table.Ower
-    title_dir=verifpath(os.path.join(verifpath(os.path.join(dir, server_table.Type), 1), title_table.Name), 1)
-    if any(file for file in os.listdir(title_dir) if file.endswith('.cbz') and os.path.splitext(file)[0]==Table.Name):
+    for Table in contents:
+        title_table=Table.Ower
+        title_dir=verifpath(os.path.join(verifpath(os.path.join(dir, "Mangás"), 1), title_table.Name), 1)
+        # input((os.path.join(title_dir, Table.Name), os.listdir(title_dir)))
+        if any(file for file in os.listdir(title_dir) if file.endswith('.cbz') and os.path.splitext(file)[0]==Table.Name):
 
-        return None
+            continue
 
-
-
-    if not session.get('Downloads'):
-        session['Downloads']={}
-    session['Downloads'].update({Table.Name:True})
-
-    content_dir=verifpath(os.path.join(title_dir, Table.Name), 1)
-    if verifpath(content_dir+'.zip', 0)==False:
-        getallinfolinks(Subcontents, Table, Table.URL)
-        print('\nBaixando: {}\n'.format(Table.Name))   
-        for subcontent in Table.Backref:
-            subcontent__name=subcontent.Name+'.png'
-            subcontent_dir=os.path.join(content_dir, subcontent__name)
-            if verifpath(subcontent_dir, 0)==False:
-                subcontent_url=subcontent.URL
-                print(subcontent_url)
-                subcontent_data=getinfo(subcontent_url, 'Download')
-                if type(subcontent_data)==int:
-                  
-                    return -10
-                print(subcontent_data)
-                with open(subcontent_dir, 'wb') as file:
-                    file.write(subcontent_data.content)
-                    file.close()
-                print(subcontent_dir, end='\n')
-
-    if server_table.Type in ['Quadrinhos', 'Mangás']:
-        print('Convertendo {} para .cbz\n'.format(Table.Name))
+        if not session.get('Downloads'):
+            session['Downloads']={}
+        session['Downloads'].update({Table.Name:True})
+        content_dir=verifpath(os.path.join(title_dir, Table.Name), 1)
+        if verifpath(content_dir+'.zip', 0)==False:
+            getallinfolinks(Subcontents, Table, Table.URL)
+            print('\nBaixando: {}'.format(Table.Name))   
+            for subcontent in Table.Backref:
+                subcontent__name=subcontent.Name+'.png'
+                subcontent_dir=os.path.join(content_dir, subcontent__name)
+                if verifpath(subcontent_dir, 0)==False:
+                    subcontent_url=subcontent.URL
+                    subcontent_data=getinfo(subcontent_url, 'Download')
+                    if type(subcontent_data)==int:
+                    
+                        return -10
+                    
+                    print(subcontent_data)
+                    with open(subcontent_dir, 'wb') as file:
+                        file.write(subcontent_data.content)
+                        file.close()
+                    print(subcontent_dir, end='\n')
+        print('\nConvertendo {} para .cbz\n'.format(Table.Name))
         cbzconvert(content_dir)
-    session['Downloads'].update({Table.Name:False})
+        session['Downloads'].update({Table.Name:False})
+    print("\nDownloads finalizados!")
+
  # Função para converter arquivos em '.cbz'
 def cbzconvert(content_dir):
 
@@ -445,4 +435,4 @@ def cbzconvert(content_dir):
         verifzip=ziparchs()
     if verifzip!=-10:
         renameext()
-    print('Concluído!')
+    print('Concluído.')

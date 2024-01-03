@@ -15,14 +15,8 @@ Refresh
     <div id="search_box" class="form-group" align="center">
         <label for="search">Choose a title:</label>
         <select class="selectpicker" id="search" name="search" title="Empty" data-live-search="true" data-live-search-placeholder="Search" data-actions-box="true" required multiple>
-          {% for type in types%}
-          <optgroup label="{{type}}">
-            {% for server in Servers_List %}
-            {% if server.Type == type%}
-            <option value="{{server.id}}" data-subtext="{{server.Backref.count()}} títulos">{{server.Name}}</option>
-            {% endif %}
-            {% endfor %}
-          </optgroup>
+          {% for server in Servers_List %}
+          <option value="{{server.id}}" data-subtext="{{server.Backref.count()}} títulos">{{server.Name}}</option>
           {% endfor %}
         </select>
         <button type="submit" class="btn btn-primary" onclick="loading()">Submit</button>

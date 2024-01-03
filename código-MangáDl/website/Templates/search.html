@@ -16,33 +16,13 @@ Search
     <div id="search_box" class="form-group" align="center">
         <label for="search">Choose a title:</label>
         <select class="selectpicker" data-size="10" id="search" name="search" title="Empty" data-live-search="true" data-live-search-placeholder="Search" data-actions-box="true" required>
-
-            {% for type in types%}
-            <optgroup label="{{type}}">
-                {% for server in Servers_List %}
-                {% if server.Type == type%}
-                {% for favorite in Favorites %}
-                {% if favorite.Ower == server%}
-                <option value="{{favorite.id}}" data-subtext="{{favorite.Ower.Name}}">Favorito: {{favorite.Name}}</option>
-                {% endif %}
-                {% endfor %}
-                {% endif %}
+            {% for server in Servers_List %}
+            <optgroup label="{{server.Name}}">
+                {% for title in server.Backref%}
+                <option value="{{title.id}}" {% if title in Favorites %} data-subtext="Favorito" {% endif %}>{{title.Name}}</option>
                 {% endfor %}
             </optgroup>
             {% endfor %}
-
-            {% for type in types%}
-            <optgroup label="{{type}}">
-              {% for server in Servers_List %}
-              {% if server.Type == type%}
-              {% for title in server.Backref%}
-              <option value="{{title.id}}" data-subtext="{{server.Name}}">{{title.Name}}</option>
-              {% endfor %}
-              {% endif %}
-              {% endfor %}
-            </optgroup>
-            {% endfor %}
-            
         </select>
         <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i></button>
     </div>
