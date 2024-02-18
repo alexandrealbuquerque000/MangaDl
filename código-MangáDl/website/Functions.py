@@ -21,11 +21,19 @@ def getinfo(site, current_server, classinfo=None, extrainfo=None, firstfilter=No
 
 
     def by_webdriver(site):
-        
         options = EdgeOptions()
-        options.headless = True
+        options.add_argument('--enable-chrome-browser-cloud-management')
+        options.add_argument("--headless=new")
+        options.add_argument('--disable-gpu')
+        options.add_experimental_option("detach", True)
+        options.add_experimental_option("prefs",{
+                                                "download.default_directory": os.path.abspath(os.getcwd()),
+                                                "download.prompt_for_download": False,
+                                                "download.directory_upgrade": True,
+                                                "safebrowsing.enabled": False
+                                                })
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        driver = Edge(service=Service(EdgeChromiumDriverManager(log_level=0, print_first_line=False).install()), options = options)
+        driver = Edge(service=Service(EdgeChromiumDriverManager().install()), options = options)
         driver.get(site)
 
         if current_server.Name=='BR Mangás':

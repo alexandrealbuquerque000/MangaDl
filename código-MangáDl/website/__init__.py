@@ -8,9 +8,9 @@ db = SQLAlchemy()
 DB_DIR = 'database.db'
 
 
-#Apenas enquanto teste!
-DB_DIR = os.path.join(os.path.expanduser("~/Desktop"), DB_DIR)
-#
+# #Apenas enquanto teste!
+# DB_DIR = os.path.join(os.path.expanduser("~/Desktop"), DB_DIR)
+# #
 
 def create_app():
 
@@ -25,10 +25,11 @@ def create_app():
 
     app.register_blueprint(views, url_prefix='/')
     app.register_blueprint(auth, url_prefix='/')
-
     from .models import Users
 
-    create_database(app)
+    # create_database(app)
+    with app.app_context():
+        db.create_all()
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'
@@ -42,6 +43,6 @@ def create_app():
     return app
 
 
-def create_database(app):
-    if not verifpath(DB_DIR, 0): 
-        db.create_all(app=app)
+# def create_database():
+#     if not verifpath(DB_DIR, 0): 
+#         db.create_all()

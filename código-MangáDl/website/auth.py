@@ -145,7 +145,7 @@ def sign_up():
         elif password != password_check:
             flash('Passwords don`t match.', category='error')
         else:
-            dict_info.update({'Password': generate_password_hash(password_check, method='sha256')})
+            dict_info.update({'Password': generate_password_hash(password_check, method='pbkdf2:sha256')})
             add_data(Users, None, [dict_info])
             flash('Account created!', category='success') 
             login_user(Get_ExactTable(Users, dict_info).one(), remember=True)

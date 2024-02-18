@@ -6,13 +6,6 @@ keys = [
             'pagescapclass', 'cappagesextrainfo', 'pgsgturl', 'firstpgscapfilter', 'secondpgscapfilter',
         ]
 values = {
-            'BR Mangás':      [
-                                'https://www.brmangas.net/',
-                                '/page/{}/?s', 'item', 'div', 'title', 'href', None, 'a',
-                                'None', 'p', 'text', 'content clearfix', None,
-                                'row lista_ep', 'li', 'text', 'href', 'capitulos', 'a',
-                                None, 'img', 'src', 'col-sm-12 text-center', None,
-                              ],
             'Manga Katana':   [
                                 'https://mangakatana.com/',
                                 '/manga/page/{}', 'title', 'h3', 'text', 'href', 'uk-width-large-7-10', 'a',
