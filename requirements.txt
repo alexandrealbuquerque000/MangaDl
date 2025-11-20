@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+selenium
+webdriver-manager
+customtkinter
+pillow
+pypdf
+packaging

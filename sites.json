@@ -1,0 +1,34 @@
+{
+    "https://mangalivre.blog": {
+        "nome": "Manga Livre",
+        "selectors": {
+            "titulo_manga": "h1.manga-title",
+            "capa": "div.manga-cover img",
+            "descricao": "div.synopsis-content p",
+            "lista_capitulos": "li.chapter-item",
+            "link_capitulo": "a",
+            "container_imagens": "div.reading-content",
+            "tag_imagem": "img",
+            "atributos_possiveis": ["data-src", "data-lazy-src", "src"]
+        },
+        "config": {
+            "inverter_ordem_capitulos": true
+        }
+    },
+        "https://mangakatana.com": {
+        "nome": "Manga Katana",
+        "selectors": {
+            "titulo_manga": "h1.heading",
+            "capa": "div.cover img",
+            "descricao": "div.summary p",
+            "lista_capitulos": "div.chapters div.chapter",
+            "link_capitulo": "a",
+            "container_imagens": "div#imgs" ,
+            "tag_imagem": "img",
+            "atributos_possiveis": ["data-src", "data-lazy-src", "src"]
+        },
+        "config": {
+            "inverter_ordem_capitulos": true
+        }
+    }   
+}
