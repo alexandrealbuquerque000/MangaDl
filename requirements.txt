@@ -1,8 +1,7 @@
+customtkinter
+Pillow
 requests
 beautifulsoup4
-selenium
-webdriver-manager
-customtkinter
-pillow
+ebooklib
 pypdf
-packaging
+selenium
