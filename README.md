@@ -1,4 +1,5 @@
 # 📚 Manga Downloader
+<img width="1091" height="871" alt="image" src="https://github.com/user-attachments/assets/23dab9d7-661f-4c52-b0d8-3f2d6aad4817" />
 
 O **Manga Downloader** é uma ferramenta de desktop poderosa e intuitiva projetada para automatizar o download e a conversão de mangás. O seu diferencial reside na criação de ficheiros otimizados para leitura digital, garantindo que o seu conteúdo favorito esteja pronto para o Kindle, Kobo ou Tablets com a melhor qualidade possível.
 
