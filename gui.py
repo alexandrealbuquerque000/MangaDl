@@ -46,7 +46,11 @@ class App(ctk.CTk):
         self.entry_url = ctk.CTkEntry(self.main, placeholder_text="Link do mangá...", height=45)
         self.entry_url.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         ctk.CTkButton(self.main, text="BUSCAR", width=120, height=45, command=self.analisar).grid(row=0, column=1, padx=10)
-
+        self.fr_selection = ctk.CTkFrame(self)
+        self.fr_selection.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+        ctk.CTkButton(self.fr_selection, text="Selecionar Todos", fg_color="#333", command=self.selecionar_todos).pack(side="left", padx=5)
+        ctk.CTkButton(self.fr_selection, text="Selecionar Intervalo", fg_color="#333", command=self.selecionar_intervalo).pack(side="left", padx=5)
+        ctk.CTkButton(self.fr_selection, text="Limpar Seleção", fg_color="#555", command=self.limpar_selecao).pack(side="left", padx=5)
         self.scroll = ctk.CTkScrollableFrame(self.main, label_text="Capítulos")
         self.scroll.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
 
@@ -74,6 +78,32 @@ class App(ctk.CTk):
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 350))
             self.lbl_preview.configure(image=ctk_img, text="")
 
+    def selecionar_todos(self):
+        """Marca todos os capítulos listados."""
+        for w in self.widgets:
+            w['var'].set(True)
+
+    def limpar_selecao(self):
+        """Desmarca todos os capítulos."""
+        for w in self.widgets:
+            w['var'].set(False)
+
+    def selecionar_intervalo(self):
+        """Abre um diálogo para selecionar capítulos entre dois números (ex: 10-20)."""
+        dialog = ctk.CTkInputDialog(text="Digite o intervalo (ex: 10-25):", title="Intervalo")
+        entrada = dialog.get_input()
+        
+        if entrada and "-" in entrada:
+            try:
+                inicio, fim = map(float, entrada.split("-"))
+                for w in self.widgets:
+                    num_cap = w['data']['num']
+                    if inicio <= num_cap <= fim:
+                        w['var'].set(True)
+                    else:
+                        w['var'].set(False)
+            except ValueError:
+                messagebox.showerror("Erro", "Formato inválido. Use número-número (ex: 1-15).")
     def analisar(self):
         url = self.entry_url.get()
         if url: threading.Thread(target=self._th_an, args=(url,), daemon=True).start()
