@@ -31,13 +31,17 @@ class Engine:
         try:
             r = self.session.get(url, timeout=10)
             soup = BeautifulSoup(r.content, 'html.parser')
-            info = {'title': 'Manga', 'cover': None}
+            info = {'title': 'Manga', 'cover': None, 'description': 'Sem descrição.'}
             t_el = soup.select_one(regras['selectors']['titulo_manga'])
             if t_el: info['title'] = re.sub(r'[<>:"/\\|?*]', '', t_el.get_text(strip=True))
             c_el = soup.select_one(regras['selectors'].get('capa', 'img'))
             if c_el: 
                 src = c_el.get('data-src') or c_el.get('src')
                 if src: info['cover'] = src if src.startswith('http') else "https:" + src
+            desc_sel = regras['selectors'].get('descricao')
+            if desc_sel:
+                d_el = soup.select_one(desc_sel)
+                if d_el: info['description'] = d_el.get_text(strip=True)
             caps = []
             els = soup.select(regras['selectors']['lista_capitulos'])
             for el in els:
@@ -76,8 +80,7 @@ class Engine:
                     s = BeautifulSoup(self.session.get(item['url']).content, 'html.parser')
                     cont = s.select_one(item['rules']['selectors']['container_imagens'])
                     imgs = (cont if cont else s).select(item['rules']['selectors']['tag_imagem'])
-                    urls = [i.get(attr) for i in imgs for attr in item['rules']['selectors']['atributos_possiveis'] if i.get(attr)]
-                    urls = [u.strip() if u.startswith('http') else "https:"+u.strip() for u in urls]
+                    urls = [i.get(attr).strip() for i in imgs for attr in item['rules']['selectors']['atributos_possiveis'] if i.get(attr)]
                     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
                         for idx, u in enumerate(list(dict.fromkeys(urls)), 1):
                             ex.submit(self._save, u, os.path.join(path, f"{idx:04d}.jpg"))

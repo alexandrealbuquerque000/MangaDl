@@ -29,6 +29,12 @@ class App(ctk.CTk):
         
         ctk.CTkButton(self.sidebar, text="Capa Personalizada", command=self.pick_cover).pack(pady=10)
         self.var_vol = ctk.BooleanVar(value=True)
+
+        self.txt_desc = ctk.CTkTextbox(self.sidebar, height=150, width=250, corner_radius=10, fg_color="#1a1a1a", font=("Arial", 12))
+        self.txt_desc.pack(pady=10, padx=20)
+        self.txt_desc.insert("0.0", "Descrição...")
+        self.txt_desc.configure(state="disabled") # Bloqueia edição manual
+
         ctk.CTkCheckBox(self.sidebar, text="Agrupar Volume", variable=self.var_vol).pack(pady=10)
         self.entry_vol = ctk.CTkEntry(self.sidebar, placeholder_text="Nome Final do Volume")
         self.entry_vol.pack(pady=10, padx=20, fill="x")
@@ -113,12 +119,22 @@ class App(ctk.CTk):
         if res and res[0]:
             info, caps, _ = res
             self.info = info
+            
+            # Atualiza a descrição na interface
+            def atualizar_interface():
+                self.txt_desc.configure(state="normal")
+                self.txt_desc.delete("1.0", "end")
+                self.txt_desc.insert("1.0", info.get('description', 'Sem descrição.'))
+                self.txt_desc.configure(state="disabled")
+                self._popula(caps)
+
             if info.get('cover'):
                 img = self.engine.get_preview_img(info['cover'])
                 if img:
                     ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 350))
                     self.after(0, lambda: self.lbl_preview.configure(image=ctk_img, text=""))
-            self.after(0, lambda: self._popula(caps))
+            
+            self.after(0, atualizar_interface)
 
     def _popula(self, caps):
         for w in self.widgets: w['frame'].destroy()

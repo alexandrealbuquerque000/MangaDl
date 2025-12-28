@@ -15,6 +15,22 @@
             "inverter_ordem_capitulos": true
         }
     },
+    "https://neroxus.com.br": {
+        "nome": "Neroxus",
+        "selectors": {
+            "titulo_manga": "div.post-title h1",
+            "capa": "div.summary_image img",
+            "descricao": "div.summary__content ",
+            "lista_capitulos": "li.wp-manga-chapter",
+            "link_capitulo": "a",
+            "container_imagens": "div.reading-content",
+            "tag_imagem": "img",
+            "atributos_possiveis": ["data-src", "data-lazy-src", "src"]
+        },
+        "config": {
+            "inverter_ordem_capitulos": true
+        }
+    },
         "https://mangakatana.com": {
         "nome": "Manga Katana",
         "selectors": {
