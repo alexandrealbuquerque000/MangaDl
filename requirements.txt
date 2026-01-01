@@ -2,6 +2,4 @@ customtkinter
 Pillow
 requests
 beautifulsoup4
-ebooklib
 pypdf
-selenium

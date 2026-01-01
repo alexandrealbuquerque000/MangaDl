@@ -1,5 +1,5 @@
 import customtkinter as ctk
-import threading, os
+import threading
 from PIL import Image
 from tkinter import filedialog, messagebox
 from backend import Engine

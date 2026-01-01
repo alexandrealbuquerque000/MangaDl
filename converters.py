@@ -22,6 +22,22 @@ def preparar_capa(caminho_original, pasta_destino):
     except:
         return None
 
+def check_image(full_path):
+
+    img=Image.open(full_path).convert('RGB')
+    width, height = img.size
+
+    if width < 250 or height < 250:
+        return False
+    else:
+        if width>height:
+            img = img.rotate(-90, expand=True)
+        if os.path.splitext(full_path)[1].lower()!='.jpg':
+            full_path=os.path.splitext(full_path)[0]+'.jpg'
+        img.save(full_path, format='JPEG', quality=100)
+
+        return full_path
+
 def criar_cbz(pastas, destino, capa=None):
     """Cria arquivo Comic Book Zip (Mantido do original)."""
     try:
@@ -31,8 +47,14 @@ def criar_cbz(pastas, destino, capa=None):
                 zf.write(capa, "000_Capa.jpg")
             for i, pasta in enumerate(pastas, 1):
                 arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
+                sub=0
                 for j, arq in enumerate(arquivos, 1):
-                    zf.write(os.path.join(pasta, arq), f"C{i:03d}_P{j:04d}.jpg")
+                    j-=sub
+                    full_path = check_image(os.path.join(pasta, arq))
+                    if full_path:
+                        zf.write(full_path, f"C{i:03d}_P{j:04d}.jpg")
+                    else:
+                        sub+=1
         return True
     except: return False
 
@@ -53,10 +75,14 @@ def criar_pdf(pastas, destino, capa=None):
             arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
             inicio_cap = pag_atual
             for arq in arquivos:
-                img = Image.open(os.path.join(pasta, arq)).convert('RGB')
-                temp = f"p_{id(arq)}.pdf"
-                img.save(temp); writer.append(temp)
-                pag_atual += 1; os.remove(temp)
+                full_path = os.path.join(pasta, arq)
+                full_path = check_image(full_path)
+                if full_path:
+                    temp = f"p_{id(arq)}.pdf"
+                    with Image.open(full_path).convert('RGB') as img:
+                        img.save(temp)
+                    writer.append(temp)
+                    pag_atual += 1; os.remove(temp)
             writer.add_outline_item(nome_cap, inicio_cap)
         with open(destino, "wb") as f: writer.write(f)
         return True
@@ -76,7 +102,7 @@ def criar_epub(pastas, destino, capa=None):
         titulo = os.path.basename(destino).replace('.epub', '')
         unique_id = str(uuid.uuid4())
         lang = "pt"
-        
+        direction="rtl"
         # Estruturas para armazenar metadados durante o loop
         images_info = [] # Lista de dicionaríos: {id, filename, width, height, is_cover}
         spine_refs = []  # Lista de IDs para o spine
@@ -114,39 +140,36 @@ def criar_epub(pastas, destino, capa=None):
             arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
             
             first_page_of_chapter = None
-            
+            sub=0
             for j, arq in enumerate(arquivos, 1):
+                j-=sub
                 global_count += 1
-                full_path = os.path.join(pasta, arq)
-                
-                # Ler dimensões
-                try:
+                full_path = check_image(os.path.join(pasta, arq))
+                if full_path:
                     with Image.open(full_path) as img:
                         w, h = img.size
-                except:
-                    continue
-                
-                img_ext = os.path.splitext(arq)[1].lower()
-                if img_ext == '.webp': img_ext = '.jpg' # Força jpg se necessário no nome interno
-                
-                img_id = f"img_{i}_{j}"
-                page_id = f"page_{i}_{j}"
-                img_filename = f"image_{global_count:04d}{img_ext}"
-                
-                images_info.append({
-                    "id": img_id,
-                    "filename": img_filename,
-                    "width": w,
-                    "height": h,
-                    "is_cover": False,
-                    "page_id": page_id
-                })
-                spine_refs.append(page_id)
-                image_files_to_write.append((full_path, f"images/{img_filename}"))
-                
-                if j == 1:
-                    first_page_of_chapter = page_id
-
+                    img_ext = os.path.splitext(arq)[1].lower()
+                    if img_ext == '.webp': img_ext = '.jpg' # Força jpg se necessário no nome interno
+                    
+                    img_id = f"img_{i}_{j}"
+                    page_id = f"page_{i}_{j}"
+                    img_filename = f"image_{global_count:04d}{img_ext}"
+                    
+                    images_info.append({
+                        "id": img_id,
+                        "filename": img_filename,
+                        "width": w,
+                        "height": h,
+                        "is_cover": False,
+                        "page_id": page_id
+                    })
+                    spine_refs.append(page_id)
+                    image_files_to_write.append((full_path, f"images/{img_filename}"))
+                    
+                    if j == 1:
+                        first_page_of_chapter = page_id
+                else:
+                    sub+=1
             if first_page_of_chapter:
                 toc_items.append((first_page_of_chapter, nome_cap))
 
@@ -305,7 +328,7 @@ div {
     <manifest>
         {manifest_items}
     </manifest>
-    <spine toc="ncx">
+    <spine toc="ncx" page-progression-direction={direction}>
         {spine_items}
     </spine>
 </package>"""
