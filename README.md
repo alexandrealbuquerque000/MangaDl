@@ -32,7 +32,7 @@ O **Manga Downloader** é uma ferramenta de desktop poderosa e intuitiva projeta
 * **Linguagem:** Python 3.10+
 * **Interface:** [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter)
 * **Processamento de Imagem:** [Pillow (PIL)](https://www.google.com/search?q=https://python-pillow.org/)
-* **Documentos Digitais:** [EbookLib](https://github.com/aerkalov/ebooklib) e [PyPDF](https://pypdf.readthedocs.io/)
+* **Documentos Digitais:** [PyPDF](https://pypdf.readthedocs.io/)
 * **Web Scraping:** [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) e [Requests](https://requests.readthedocs.io/)
 
 ---
@@ -45,8 +45,8 @@ Certifique-se de que tem o Python instalado no seu sistema.
 
 1. **Clone o Repositório:**
 ```bash
-git clone https://github.com/seu-usuario/manga-downloader-ultra.git
-cd manga-downloader-ultra
+git clone https://github.com/seu-usuario/MangaDl.git
+cd MangaDl
 
 ```
 
