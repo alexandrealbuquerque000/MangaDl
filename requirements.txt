@@ -3,3 +3,4 @@ Pillow
 requests
 beautifulsoup4
 pypdf
+cbz

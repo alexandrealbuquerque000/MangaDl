@@ -5,6 +5,9 @@ import uuid
 from datetime import datetime
 from PIL import Image
 from pypdf import PdfWriter
+from cbz.comic import ComicInfo
+from cbz.constants import PageType, YesNo, Manga, Format
+from cbz.page import PageInfo
 
 def natural_keys(text):
     """Ordenação humana para listas (ex: 1, 2, 10)."""
@@ -22,46 +25,63 @@ def preparar_capa(caminho_original, pasta_destino):
     except:
         return None
 
-def check_image(full_path):
+def check_image(full_path, fmt):
 
-    img=Image.open(full_path).convert('RGB')
-    width, height = img.size
+    with Image.open(full_path).convert('RGB') as img:
+        width, height = img.size
 
-    if width < 250 or height < 250:
-        return False
-    else:
-        if width>height:
-            img = img.rotate(-90, expand=True)
-        if os.path.splitext(full_path)[1].lower()!='.jpg':
-            full_path=os.path.splitext(full_path)[0]+'.jpg'
-        img.save(full_path, format='JPEG', quality=100)
+        if width < 250 or height < 250:
+            return False
+        else:
+            if width>height and fmt=='.epub':
+                img = img.rotate(-90, expand=True)
+            if os.path.splitext(full_path)[1].lower()!='.jpg':
+                full_path=os.path.splitext(full_path)[0]+'.jpg'
+            img.save(full_path, format='JPEG', quality=100)
 
-        return full_path
+    return full_path
 
 def criar_cbz(pastas, destino, capa=None):
     """Cria arquivo Comic Book Zip (Mantido do original)."""
     try:
-        if not destino.endswith('.cbz'): destino += '.cbz'
-        with zipfile.ZipFile(destino, 'w', zipfile.ZIP_DEFLATED) as zf:
-            if capa and os.path.exists(capa):
-                zf.write(capa, "000_Capa.jpg")
-            for i, pasta in enumerate(pastas, 1):
-                arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
-                sub=0
-                for j, arq in enumerate(arquivos, 1):
-                    j-=sub
-                    full_path = check_image(os.path.join(pasta, arq))
-                    if full_path:
-                        zf.write(full_path, f"C{i:03d}_P{j:04d}.jpg")
-                    else:
-                        sub+=1
+        fmt='.cbz'
+        if not destino.endswith(fmt): destino += fmt
+        titulo = os.path.basename(destino).replace(fmt, '')
+        pages=[]
+        if capa and os.path.exists(capa):
+            pages.append(PageInfo.load(path=capa, type=PageType.FRONT_COVER))
+        for i, pasta in enumerate(pastas, 1):
+            arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
+            sub=0
+            for j, arq in enumerate(arquivos, 1):
+                j-=sub
+                full_path = check_image(os.path.join(pasta, arq), fmt)
+                if full_path:
+                    pages.append(PageInfo.load(path=full_path, type=PageType.STORY))
+                else:
+                    sub+=1
+        comic = ComicInfo.from_pages(
+        pages=pages,
+        title=titulo,
+        language_iso='pt',
+        format=Format.WEB_COMIC,
+        black_white=YesNo.NO,
+        manga=Manga.YES,
+        )
+        # Pack the comic book content into a CBZ file format
+        cbz_content = comic.pack()
+        # Write the CBZ content to the specified path
+        with open(destino, "wb") as dest:
+            dest.write(cbz_content)
+
         return True
     except: return False
 
 def criar_pdf(pastas, destino, capa=None):
     """Cria PDF com marcadores (Mantido do original)."""
     try:
-        if not destino.endswith('.pdf'): destino += '.pdf'
+        fmt='.pdf'
+        if not destino.endswith(fmt): destino += fmt
         writer = PdfWriter()
         pag_atual = 0
         if capa and os.path.exists(capa):
@@ -76,7 +96,7 @@ def criar_pdf(pastas, destino, capa=None):
             inicio_cap = pag_atual
             for arq in arquivos:
                 full_path = os.path.join(pasta, arq)
-                full_path = check_image(full_path)
+                full_path = check_image(full_path, fmt)
                 if full_path:
                     temp = f"p_{id(arq)}.pdf"
                     with Image.open(full_path).convert('RGB') as img:
@@ -96,10 +116,11 @@ def criar_epub(pastas, destino, capa=None):
     Gera o ZIP manualmente para garantir controle total sobre o XML e Layout.
     """
     try:
-        if not destino.endswith('.epub'): destino += '.epub'
+        fmt='.epub'
+        if not destino.endswith(fmt): destino += fmt
         
         # Dados gerais
-        titulo = os.path.basename(destino).replace('.epub', '')
+        titulo = os.path.basename(destino).replace(fmt, '')
         unique_id = str(uuid.uuid4())
         lang = "pt"
         direction="rtl"
@@ -144,7 +165,7 @@ def criar_epub(pastas, destino, capa=None):
             for j, arq in enumerate(arquivos, 1):
                 j-=sub
                 global_count += 1
-                full_path = check_image(os.path.join(pasta, arq))
+                full_path = check_image(os.path.join(pasta, arq), fmt)
                 if full_path:
                     with Image.open(full_path) as img:
                         w, h = img.size

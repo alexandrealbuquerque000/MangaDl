@@ -4,6 +4,7 @@ from PIL import Image
 from tkinter import filedialog, messagebox
 from backend import Engine
 
+
 ctk.set_appearance_mode("Dark")
 
 class App(ctk.CTk):
