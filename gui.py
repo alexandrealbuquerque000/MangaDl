@@ -11,7 +11,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Manga Downloader")
-        self.geometry(960, 540)
+        self.geometry("960x540")
         self.minsize(800, 450)
         self.engine = Engine()
         self.path_cover = None
