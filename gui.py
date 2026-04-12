@@ -4,7 +4,6 @@ from PIL import Image
 from tkinter import filedialog, messagebox
 from backend import Engine
 
-
 ctk.set_appearance_mode("Dark")
 
 class App(ctk.CTk):
@@ -44,6 +43,9 @@ class App(ctk.CTk):
         self.combo_fmt = ctk.CTkComboBox(self.sidebar, values=["epub", "pdf", "cbz"], state="readonly")
         self.combo_fmt.set("epub")
         self.combo_fmt.pack(pady=10)
+
+        self.btn_local = ctk.CTkButton(self.sidebar, text="Converter Pastas Locais", fg_color="#005580", command=self.converter_local)
+        self.btn_local.pack(pady=10, padx=20, fill="x")
 
         # Main
         self.main = ctk.CTkFrame(self, fg_color="transparent")
@@ -170,6 +172,30 @@ class App(ctk.CTk):
         color = "green" if msg == "Pronto" else "orange"
         self.after(0, lambda: [
             self.widgets[idx]['lbl'].configure(text=msg, text_color=color),
+            self.progress_bar.set(progresso)
+        ])
+
+    def converter_local(self):
+        # Abre uma janela para selecionar a pasta do Mangá já organizada em volumes.
+        diretorio = filedialog.askdirectory(title="Selecione a pasta principal do Mangá (que contém os volumes)")
+        if diretorio:
+            formato = self.combo_fmt.get()
+            self.btn_go.configure(state="disabled")
+            self.btn_local.configure(state="disabled")
+            self.progress_bar.set(0)
+            threading.Thread(target=self._th_local, args=(diretorio, formato), daemon=True).start()
+
+    def _th_local(self, diretorio, formato):
+        self.engine.convert_local_volumes(diretorio, formato, self.path_cover, self._upd_local)
+        self.after(0, lambda: [
+            self.btn_go.configure(state="normal"), 
+            self.btn_local.configure(state="normal"),
+            messagebox.showinfo("Fim", "Conversão das pastas locais concluída!")
+        ])
+
+    def _upd_local(self, msg, progresso):
+        self.after(0, lambda: [
+            self.btn_local.configure(text=msg) if msg != "Pronto" else self.btn_local.configure(text="Converter Pastas Locais"),
             self.progress_bar.set(progresso)
         ])
 
