@@ -11,7 +11,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Manga Downloader")
-        self.geometry("1100x850")
+        self.geometry(960, 540)
+        self.minsize(800, 450)
         self.engine = Engine()
         self.path_cover = None
         self.widgets = []
@@ -25,13 +26,13 @@ class App(ctk.CTk):
         self.sidebar = ctk.CTkFrame(self, width=300, corner_radius=0)
         self.sidebar.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
         
-        self.lbl_preview = ctk.CTkLabel(self.sidebar, text="Sem Preview", width=250, height=350, fg_color="#222", corner_radius=10)
+        self.lbl_preview = ctk.CTkLabel(self.sidebar, text="Sem Preview", width=175, height=245, fg_color="#222", corner_radius=10)
         self.lbl_preview.pack(pady=20, padx=20)
         
         ctk.CTkButton(self.sidebar, text="Capa Personalizada", command=self.pick_cover).pack(pady=10)
         self.var_vol = ctk.BooleanVar(value=True)
 
-        self.txt_desc = ctk.CTkTextbox(self.sidebar, height=150, width=250, corner_radius=10, fg_color="#1a1a1a", font=("Arial", 12))
+        self.txt_desc = ctk.CTkTextbox(self.sidebar, height=105, width=245, corner_radius=10, fg_color="#1a1a1a", font=("Arial", 12))
         self.txt_desc.pack(pady=10, padx=20)
         self.txt_desc.insert("0.0", "Descrição...")
         self.txt_desc.configure(state="disabled") # Bloqueia edição manual
