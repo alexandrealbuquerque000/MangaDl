@@ -83,7 +83,7 @@ class App(ctk.CTk):
         if p:
             self.path_cover = p
             img = Image.open(p)
-            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 350))
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(175, 245))
             self.lbl_preview.configure(image=ctk_img, text="")
 
     def selecionar_todos(self):
@@ -133,7 +133,7 @@ class App(ctk.CTk):
             if info.get('cover'):
                 img = self.engine.get_preview_img(info['cover'])
                 if img:
-                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 350))
+                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(175, 245))
                     self.after(0, lambda: self.lbl_preview.configure(image=ctk_img, text=""))
             
             self.after(0, atualizar_interface)
