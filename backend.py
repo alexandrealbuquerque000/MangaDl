@@ -106,6 +106,53 @@ class Engine:
             return True
         except: return False
 
+    def convert_local_volumes(self, manga_path, format, cover_input, status_cb):
+        #Lê pastas organizadas (ex: Volumes) e converte cada uma num ficheiro individual com suporte a capas locais.
+        try:
+            # Lista apenas as subpastas (ignorando ficheiros soltos)
+            volumes = [d for d in os.listdir(manga_path) if os.path.isdir(os.path.join(manga_path, d))]
+            volumes.sort()
+            
+            if not volumes:
+                status_cb("Nenhuma pasta encontrada.", 1.0)
+                return
+
+            for i, vol_name in enumerate(volumes):
+                vol_path = os.path.join(manga_path, vol_name)
+                status_cb(f"A converter {vol_name}...", i / len(volumes))
+                
+                # Verifica se existem pastas de capítulos dentro da pasta do volume
+                subpastas = [os.path.join(vol_path, c) for c in os.listdir(vol_path) if os.path.isdir(os.path.join(vol_path, c))]
+                subpastas.sort()
+                
+                # Se tiver subpastas (capítulos), passa a lista. Se tiver apenas imagens soltas, passa a pasta do volume.
+                paths_para_converter = subpastas if subpastas else [vol_path]
+                
+                dest = os.path.join(manga_path, vol_name) 
+                
+                capa_final = None
+                capa_local = None
+                
+                # Procura por um ficheiro chamado "cover" na pasta específica do volume
+                for arquivo in os.listdir(vol_path):
+                    nome_min = arquivo.lower()
+                    if nome_min.startswith('cover.') and nome_min.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                        capa_local = os.path.join(vol_path, arquivo)
+                        break # Encontrou a capa, para de procurar nesta pasta
+                
+                # Prioridade: 1º Capa Local da pasta, 2º Capa Global da interface
+                if capa_local:
+                    capa_final = converters.preparar_capa(capa_local, manga_path)
+                elif cover_input:
+                    capa_final = converters.preparar_capa(cover_input, manga_path)
+                
+                self._convert(format, paths_para_converter, dest, capa_final)
+                
+            status_cb("Pronto", 1.0)
+        except Exception as e:
+            print(f"Erro: {e}")
+            status_cb("Erro na conversão", 1.0)
+
     def clear_cache(self, base_path, manga_title):
         """Limpa pastas e ficheiros temporários."""
         manga_path = os.path.join(base_path, manga_title)
