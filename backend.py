@@ -49,7 +49,7 @@ class Engine:
                 if a and a.get('href'):
                     href = a['href']
                     if not href.startswith('http'): href = "https://" + url.split('/')[2] + href
-                    name = a.get_text(strip=True)
+                    name = a.find(string=re.compile(r'\d')).get_text(strip=True)
                     match = re.search(r'(\d+)', name)
                     num = float(match.group(1)) if match else 0.0
                     caps.append({'name': name, 'folder': f"Cap_{num:03g}", 'url': href, 'num': num, 'rules': regras})
