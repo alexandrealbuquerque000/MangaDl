@@ -3,46 +3,116 @@ import zipfile
 import re
 import uuid
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFile
 from pypdf import PdfWriter
 from cbz.comic import ComicInfo
 from cbz.constants import PageType, YesNo, Manga, Format
 from cbz.page import PageInfo
+
+# Permite carregar imagens que tenham sido parcialmente cortadas no download
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def natural_keys(text):
     """Ordenação humana para listas (ex: 1, 2, 10)."""
     return [(int(c) if c.isdigit() else c) for c in re.split(r'(\d+)', text)]
 
 def preparar_capa(caminho_original, pasta_destino):
-    """Normaliza a imagem para ser usada como capa."""
+    """Normaliza a imagem para ser usada como capa estruturalmente compatível."""
     if not caminho_original or not os.path.exists(caminho_original):
         return None
     try:
         dest = os.path.join(pasta_destino, "cover_final.jpg")
         with Image.open(caminho_original) as img:
-            img.convert('RGB').save(dest, "JPEG", quality=95)
+            img.convert('RGB').save(dest, "JPEG", quality=95, progressive=False)
         return dest
     except:
         return None
 
-def check_image(full_path, fmt):
+def check_image(full_path, fmt, optimize=False):
+    """
+    Remove margens brancas e otimiza a cor, MAS não altera a resolução da imagem.
+    Delega o ajuste e esticamento para o software do e-reader.
+    """
+    try:
+        with Image.open(full_path) as img_aberta:
+            if img_aberta.mode in ('RGBA', 'LA') or (img_aberta.mode == 'P' and 'transparency' in img_aberta.info):
+                img = img_aberta.convert('RGBA').convert('RGB')
+            else:
+                img = img_aberta.convert('RGB')
+    except Exception:
+        return []
 
-    with Image.open(full_path).convert('RGB') as img:
+    if img.width < 250 or img.height < 250:
+        return []
+
+    if optimize:
+        # 1. AUTO-CROP: REMOVE MARGENS BRANCAS INÚTEIS
+        gray = img.convert("L")
+        bw = gray.point(lambda x: 0 if x > 245 else 255)
+        
+        bbox = bw.getbbox()
+        if bbox:
+            l, u, r, d = bbox
+            l = max(0, l - 5)
+            u = max(0, u - 5)
+            r = min(img.width, r + 5)
+            d = min(img.height, d + 5)
+            img = img.crop((l, u, r, d))
+
+    width, height = img.size
+
+    # Rotação para EPUB de páginas duplas
+    if width > height and fmt == '.epub':
+        img = img.rotate(-90, expand=True)
         width, height = img.size
 
-        if width < 250 or height < 250:
-            return False
+    base_path, _ = os.path.splitext(full_path)
+
+    if optimize:
+        # Tratamento visual de Kindle (Contraste e Preto e Branco)
+        img = img.convert('L')
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.2)
+        
+        # 2. Lógica para Webtoons (Tiras muito compridas)
+        # Fatiamos tiras compridas para o Kindle não engasgar, MAS SEM ESTICAR a imagem
+        if height / float(width) > 2.0:
+            paths = []
+            # Calcula a altura ideal de cada fatia baseada na proporção da tela (1648/1236 = ~1.33)
+            chunk_height = int(width * (1648 / 1236.0))
+            num_parts = (height // chunk_height) + (1 if height % chunk_height > 0 else 0)
+            
+            for p in range(num_parts):
+                top = p * chunk_height
+                bottom = min((p + 1) * chunk_height, height)
+                
+                chunk = img.crop((0, top, width, bottom))
+                chunk_path = f"{base_path}_part{p}.jpg"
+                chunk.convert('RGB').save(chunk_path, format='JPEG', quality=85, optimize=True, progressive=False)
+                paths.append(chunk_path)
+                
+            return paths
+            
+        # 3. Lógica para Mangá Padrão
         else:
-            if width>height and fmt=='.epub':
-                img = img.rotate(-90, expand=True)
-            if os.path.splitext(full_path)[1].lower()!='.jpg':
-                full_path=os.path.splitext(full_path)[0]+'.jpg'
-            img.save(full_path, format='JPEG', quality=100)
+            # SEM REDIMENSIONAMENTO: Mantemos as proporções exatas após o corte.
+            final_path = f"{base_path}_opt.jpg"
+            img.convert('RGB').save(final_path, format='JPEG', quality=85, optimize=True, progressive=False)
+            return [final_path]
+            
+    else:
+        # Caminho sem otimização
+        final_path = f"{base_path}.jpg"
+        if final_path != full_path or os.path.splitext(full_path)[1].lower() != '.jpg':
+            try:
+                img.convert('RGB').save(final_path, format='JPEG', quality=95, optimize=True, progressive=False)
+            except Exception:
+                return [full_path]
+        return [final_path]
 
-    return full_path
 
-def criar_cbz(pastas, destino, capa=None):
-    """Cria arquivo Comic Book Zip (Mantido do original)."""
+def criar_cbz(pastas, destino, capa=None, optimize=False):
+    """Cria arquivo Comic Book Zip com suporte a fatiamento."""
     try:
         fmt='.cbz'
         if not destino.endswith(fmt): destino += fmt
@@ -50,315 +120,170 @@ def criar_cbz(pastas, destino, capa=None):
         pages=[]
         if capa and os.path.exists(capa):
             pages.append(PageInfo.load(path=capa, type=PageType.FRONT_COVER))
+            
         for i, pasta in enumerate(pastas, 1):
             arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
-            sub=0
-            for j, arq in enumerate(arquivos, 1):
-                j-=sub
-                full_path = check_image(os.path.join(pasta, arq), fmt)
-                if full_path:
-                    pages.append(PageInfo.load(path=full_path, type=PageType.STORY))
-                else:
-                    sub+=1
+            for arq in arquivos:
+                paths = check_image(os.path.join(pasta, arq), fmt, optimize)
+                for p in paths:
+                    pages.append(PageInfo.load(path=p, type=PageType.STORY))
+                    
         comic = ComicInfo.from_pages(
-        pages=pages,
-        title=titulo,
-        language_iso='pt',
-        format=Format.WEB_COMIC,
-        black_white=YesNo.NO,
-        manga=Manga.YES,
+            pages=pages,
+            title=titulo,
+            language_iso='pt',
+            format=Format.WEB_COMIC,
+            black_white=YesNo.NO,
+            manga=Manga.YES,
         )
-        # Pack the comic book content into a CBZ file format
-        cbz_content = comic.pack()
-        # Write the CBZ content to the specified path
         with open(destino, "wb") as dest:
-            dest.write(cbz_content)
+            dest.write(comic.pack())
 
         return True
     except: return False
 
-def criar_pdf(pastas, destino, capa=None):
-    """Cria PDF com marcadores (Mantido do original)."""
+
+def criar_pdf(pastas, destino, capa=None, optimize=False):
+    """Cria PDF com marcadores e suporte a fatiamento."""
     try:
         fmt='.pdf'
         if not destino.endswith(fmt): destino += fmt
         writer = PdfWriter()
         pag_atual = 0
+        
         if capa and os.path.exists(capa):
-            img = Image.open(capa).convert('RGB')
-            temp = f"t_c_{id(destino)}.pdf"
-            img.save(temp); writer.append(temp)
-            writer.add_outline_item("Capa", 0); pag_atual += 1; os.remove(temp)
+            temp = f"t_c_{uuid.uuid4().hex[:6]}.pdf"
+            with Image.open(capa).convert('RGB') as img:
+                img.save(temp)
+            writer.append(temp)
+            writer.add_outline_item("Capa", 0)
+            pag_atual += 1
+            os.remove(temp)
 
         for pasta in pastas:
             nome_cap = os.path.basename(pasta).replace('_', ' ')
             arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
             inicio_cap = pag_atual
+            
             for arq in arquivos:
-                full_path = os.path.join(pasta, arq)
-                full_path = check_image(full_path, fmt)
-                if full_path:
-                    temp = f"p_{id(arq)}.pdf"
-                    with Image.open(full_path).convert('RGB') as img:
+                paths = check_image(os.path.join(pasta, arq), fmt, optimize)
+                for p in paths:
+                    temp = f"p_{uuid.uuid4().hex[:6]}.pdf"
+                    with Image.open(p).convert('RGB') as img:
                         img.save(temp)
                     writer.append(temp)
-                    pag_atual += 1; os.remove(temp)
+                    pag_atual += 1
+                    os.remove(temp)
+                    
             writer.add_outline_item(nome_cap, inicio_cap)
+            
         with open(destino, "wb") as f: writer.write(f)
         return True
     except: return False
 
-# --- NOVA IMPLEMENTAÇÃO DO CRIAR_EPUB (Lógica do Images_To_ePub) ---
 
-def criar_epub(pastas, destino, capa=None):
-    """
-    Cria um EPUB usando a estrutura exata do projeto 'Images_To_ePub'.
-    Gera o ZIP manualmente para garantir controle total sobre o XML e Layout.
-    """
+def criar_epub(pastas, destino, capa=None, optimize=False):
+    """Cria EPUB com suporte à renderização exata das partes fatiadas e originais."""
     try:
         fmt='.epub'
         if not destino.endswith(fmt): destino += fmt
         
-        # Dados gerais
         titulo = os.path.basename(destino).replace(fmt, '')
         unique_id = str(uuid.uuid4())
         lang = "pt"
         direction="rtl"
-        # Estruturas para armazenar metadados durante o loop
-        images_info = [] # Lista de dicionaríos: {id, filename, width, height, is_cover}
-        spine_refs = []  # Lista de IDs para o spine
-        toc_items = []   # Lista de (id_pagina, titulo) para o índice
+        images_info = [] 
+        spine_refs = []  
+        toc_items = []   
+        image_files_to_write = [] 
 
-        # Lista temporária de arquivos de imagem normalizada
-        image_files_to_write = [] # (source_path, internal_path)
-
-        # 1. Processar CAPA (se existir)
         if capa and os.path.exists(capa):
             with Image.open(capa) as img:
                 w, h = img.size
             
-            img_id = "cover_img"
             page_id = "cover_page"
             img_filename = "cover.jpg"
-            
-            images_info.append({
-                "id": img_id,
-                "filename": img_filename,
-                "width": w,
-                "height": h,
-                "is_cover": True,
-                "page_id": page_id
-            })
+            images_info.append({"id": "cover_img", "filename": img_filename, "width": w, "height": h, "is_cover": True, "page_id": page_id})
             spine_refs.append(page_id)
             image_files_to_write.append((capa, f"images/{img_filename}"))
-            # Adiciona ao TOC
             toc_items.append((page_id, "Capa"))
 
-        # 2. Processar IMAGENS DO MANGÁ
         global_count = 0
         for i, pasta in enumerate(pastas, 1):
             nome_cap = os.path.basename(pasta).replace('_', ' ')
             arquivos = sorted([f for f in os.listdir(pasta) if f.lower().endswith(('jpg','jpeg','png','webp'))], key=natural_keys)
             
             first_page_of_chapter = None
-            sub=0
-            for j, arq in enumerate(arquivos, 1):
-                j-=sub
-                global_count += 1
-                full_path = check_image(os.path.join(pasta, arq), fmt)
-                if full_path:
-                    with Image.open(full_path) as img:
+            is_first = True
+            
+            for arq in arquivos:
+                paths = check_image(os.path.join(pasta, arq), fmt, optimize)
+                for p in paths:
+                    global_count += 1
+                    with Image.open(p) as img:
                         w, h = img.size
-                    img_ext = os.path.splitext(arq)[1].lower()
-                    if img_ext == '.webp': img_ext = '.jpg' # Força jpg se necessário no nome interno
                     
-                    img_id = f"img_{i}_{j}"
-                    page_id = f"page_{i}_{j}"
-                    img_filename = f"image_{global_count:04d}{img_ext}"
+                    img_id = f"img_{i}_{global_count}"
+                    page_id = f"page_{i}_{global_count}"
+                    img_filename = f"image_{global_count:04d}.jpg"
                     
-                    images_info.append({
-                        "id": img_id,
-                        "filename": img_filename,
-                        "width": w,
-                        "height": h,
-                        "is_cover": False,
-                        "page_id": page_id
-                    })
+                    images_info.append({"id": img_id, "filename": img_filename, "width": w, "height": h, "is_cover": False, "page_id": page_id})
                     spine_refs.append(page_id)
-                    image_files_to_write.append((full_path, f"images/{img_filename}"))
+                    image_files_to_write.append((p, f"images/{img_filename}"))
                     
-                    if j == 1:
+                    if is_first:
                         first_page_of_chapter = page_id
-                else:
-                    sub+=1
+                        is_first = False
+                        
             if first_page_of_chapter:
                 toc_items.append((first_page_of_chapter, nome_cap))
 
-        # --- GERAÇÃO DO ZIP ---
         with zipfile.ZipFile(destino, 'w', zipfile.ZIP_DEFLATED) as zf:
-            
-            # A. Mimetype (Deve ser o primeiro, sem compressão)
             zf.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
             
-            # B. Container XML
             container_xml = """<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-    <rootfiles>
-        <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
-    </rootfiles>
-</container>"""
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"""
             zf.writestr("META-INF/container.xml", container_xml)
 
-            # C. Stylesheet (Copiado do stylesheet.css do template)
-            css_content = """@charset "utf-8";
-body {
-    margin: 0;
-    padding: 0;
-    text-align: center;
-    background-color: white;
-}
-@page {
-    margin: 0;
-    padding: 0;
-}
-div {
-    margin: 0;
-    padding: 0;
-    width: 100vw;
-    height: 100vh;
-}
-"""
+            css_content = """@charset "utf-8"; body { margin: 0; padding: 0; text-align: center; background-color: white; } @page { margin: 0; padding: 0; } div { margin: 0; padding: 0; width: 100vw; height: 100vh; }"""
             zf.writestr("stylesheet.css", css_content)
 
-            # D. Escrever Imagens
             for src, dest in image_files_to_write:
-                # Se for webp, converter, senão copiar direto
                 try:
-                    if src.lower().endswith('.webp'):
-                         with Image.open(src) as im:
-                            rgb_im = im.convert('RGB')
-                            with zf.open(dest, 'w') as f_dest:
-                                rgb_im.save(f_dest, format='JPEG', quality=90)
-                    else:
-                        zf.write(src, dest)
-                except:
-                    pass
+                    zf.write(src, dest)
+                except: pass
 
-            # E. Escrever Páginas XHTML (Baseado no page.xhtml.jinja2)
             page_template = """<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head>
-    <title>{title}</title>
-    <link href="../stylesheet.css" rel="stylesheet" type="text/css"/>
-    <meta name="viewport" content="width={w}, height={h}"/>
-</head>
-<body style="margin:0;padding:0">
-    <div style="width:100vw;height:100vh;margin:0;padding:0;">
-        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 {w} {h}">
-            <image width="{w}" height="{h}" xlink:href="../images/{filename}"/>
-        </svg>
-    </div>
-</body>
-</html>"""
+<head><title>{title}</title><link href="../stylesheet.css" rel="stylesheet" type="text/css"/><meta name="viewport" content="width={w}, height={h}"/></head>
+<body style="margin:0;padding:0"><div style="width:100vw;height:100vh;margin:0;padding:0;"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 {w} {h}"><image width="{w}" height="{h}" xlink:href="../images/{filename}"/></svg></div></body></html>"""
 
             for info in images_info:
-                content = page_template.format(
-                    title=info['page_id'],
-                    w=info['width'],
-                    h=info['height'],
-                    filename=info['filename']
-                )
-                zf.writestr(f"pages/{info['page_id']}.xhtml", content)
+                zf.writestr(f"pages/{info['page_id']}.xhtml", page_template.format(title=info['page_id'], w=info['width'], h=info['height'], filename=info['filename']))
 
-            # F. TOC.ncx (Navegação legado para Kindle antigo)
-            navpoints = ""
-            for idx, (pid, title) in enumerate(toc_items, 1):
-                navpoints += f"""
-        <navPoint id="navPoint-{idx}" playOrder="{idx}">
-            <navLabel><text>{title}</text></navLabel>
-            <content src="pages/{pid}.xhtml"/>
-        </navPoint>"""
+            navpoints = "".join([f'<navPoint id="navPoint-{idx}" playOrder="{idx}"><navLabel><text>{title}</text></navLabel><content src="pages/{pid}.xhtml"/></navPoint>' for idx, (pid, title) in enumerate(toc_items, 1)])
+            zf.writestr("toc.ncx", f'''<?xml version="1.0" encoding="UTF-8"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="{unique_id}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>{titulo}</text></docTitle><navMap>{navpoints}</navMap></ncx>''')
 
-            toc_ncx = f"""<?xml version="1.0" encoding="UTF-8"?>
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-    <head>
-        <meta name="dtb:uid" content="{unique_id}"/>
-        <meta name="dtb:depth" content="1"/>
-        <meta name="dtb:totalPageCount" content="0"/>
-        <meta name="dtb:maxPageNumber" content="0"/>
-    </head>
-    <docTitle><text>{titulo}</text></docTitle>
-    <navMap>{navpoints}
-    </navMap>
-</ncx>"""
-            zf.writestr("toc.ncx", toc_ncx)
+            toc_li = "".join([f'<li><a href="pages/{pid}.xhtml">{title}</a></li>\n' for pid, title in toc_items])
+            zf.writestr("toc.xhtml", f"""<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>TOC</title></head><body><nav epub:type="toc" id="toc"><h1>Índice</h1><ol>{toc_li}</ol></nav></body></html>""")
 
-            # G. TOC.xhtml (Navegação EPUB 3)
-            toc_li = ""
-            for pid, title in toc_items:
-                toc_li += f'<li><a href="pages/{pid}.xhtml">{title}</a></li>\n'
-
-            toc_xhtml = f"""<?xml version="1.0" encoding="utf-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head><title>TOC</title></head>
-<body>
-<nav epub:type="toc" id="toc">
-    <h1>Índice</h1>
-    <ol>
-        {toc_li}
-    </ol>
-</nav>
-</body>
-</html>"""
-            zf.writestr("toc.xhtml", toc_xhtml)
-
-            # H. Package OPF (O arquivo mestre)
-            # Gera a lista de itens do manifesto
-            manifest_items = ""
-            # Adiciona itens de estilo e toc
-            manifest_items += '<item id="style" href="stylesheet.css" media-type="text/css"/>\n'
-            manifest_items += '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n'
-            manifest_items += '<item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n'
-            
-            # Adiciona imagens e paginas
+            manifest_items = '<item id="style" href="stylesheet.css" media-type="text/css"/>\n<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n<item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n'
             for info in images_info:
-                props = ' properties="cover-image"' if info['is_cover'] else ''
-                manifest_items += f'<item id="{info["id"]}" href="images/{info["filename"]}" media-type="image/jpeg"{props}/>\n'
-                manifest_items += f'<item id="{info["page_id"]}" href="pages/{info["page_id"]}.xhtml" media-type="application/xhtml+xml"/>\n'
+                manifest_items += f'<item id="{info["id"]}" href="images/{info["filename"]}" media-type="image/jpeg"{' properties="cover-image"' if info["is_cover"] else ''}/>\n<item id="{info["page_id"]}" href="pages/{info["page_id"]}.xhtml" media-type="application/xhtml+xml"/>\n'
 
-            # Gera o Spine
-            spine_items = ""
-            for ref in spine_refs:
-                spine_items += f'<itemref idref="{ref}"/>\n'
-
-            # Define data de modificação
+            spine_items = "".join([f'<itemref idref="{ref}"/>\n' for ref in spine_refs])
             mod_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            content_opf = f"""<?xml version="1.0" encoding="UTF-8"?>
+            zf.writestr("content.opf", f'''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookID" xml:lang="{lang}">
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-        <dc:title>{titulo}</dc:title>
-        <dc:language>{lang}</dc:language>
-        <dc:identifier id="BookID">{unique_id}</dc:identifier>
-        <meta property="dcterms:modified">{mod_date}</meta>
-        <meta property="rendition:layout">pre-paginated</meta>
-        <meta property="rendition:orientation">auto</meta>
-        <meta property="rendition:spread">landscape</meta>
-        <meta name="cover" content="cover_img" />
+        <dc:title>{titulo}</dc:title><dc:language>{lang}</dc:language><dc:identifier id="BookID">{unique_id}</dc:identifier>
+        <meta property="dcterms:modified">{mod_date}</meta><meta property="rendition:layout">pre-paginated</meta><meta property="rendition:orientation">auto</meta><meta property="rendition:spread">landscape</meta><meta name="cover" content="cover_img" />
     </metadata>
-    <manifest>
-        {manifest_items}
-    </manifest>
-    <spine toc="ncx" page-progression-direction={direction}>
-        {spine_items}
-    </spine>
-</package>"""
-            zf.writestr("content.opf", content_opf)
+    <manifest>{manifest_items}</manifest><spine toc="ncx" page-progression-direction={direction}>{spine_items}</spine>
+</package>''')
 
         return True
-
     except Exception as e:
         print(f"Erro ao criar EPUB: {e}")
-        import traceback
-        traceback.print_exc()
         return False
