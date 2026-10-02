@@ -21,31 +21,36 @@ class App(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Sidebar
-        self.sidebar = ctk.CTkFrame(self, width=300, corner_radius=0)
+        # Sidebar transformada em ScrollableFrame para evitar cortes verticais
+        self.sidebar = ctk.CTkScrollableFrame(self, width=280, corner_radius=0)
         self.sidebar.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=10, pady=10)
         
         self.lbl_preview = ctk.CTkLabel(self.sidebar, text="Sem Preview", width=175, height=245, fg_color="#222", corner_radius=10)
-        self.lbl_preview.pack(pady=20, padx=20)
+        self.lbl_preview.pack(pady=(10, 5), padx=10)
         
-        ctk.CTkButton(self.sidebar, text="Capa Personalizada", command=self.pick_cover).pack(pady=10)
-        self.var_vol = ctk.BooleanVar(value=True)
-
-        self.txt_desc = ctk.CTkTextbox(self.sidebar, height=105, width=245, corner_radius=10, fg_color="#1a1a1a", font=("Arial", 12))
-        self.txt_desc.pack(pady=10, padx=20)
+        ctk.CTkButton(self.sidebar, text="Capa Personalizada", command=self.pick_cover).pack(pady=5)
+        
+        # Caixa de texto ligeiramente reduzida em altura para poupar espaço
+        self.txt_desc = ctk.CTkTextbox(self.sidebar, height=80, width=245, corner_radius=10, fg_color="#1a1a1a", font=("Arial", 12))
+        self.txt_desc.pack(pady=5, padx=10)
         self.txt_desc.insert("0.0", "Descrição...")
         self.txt_desc.configure(state="disabled") # Bloqueia edição manual
 
-        ctk.CTkCheckBox(self.sidebar, text="Agrupar Volume", variable=self.var_vol).pack(pady=10)
+        self.var_vol = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(self.sidebar, text="Agrupar Volume", variable=self.var_vol).pack(pady=5)
+        
         self.entry_vol = ctk.CTkEntry(self.sidebar, placeholder_text="Nome Final do Volume")
-        self.entry_vol.pack(pady=10, padx=20, fill="x")
+        self.entry_vol.pack(pady=5, padx=20, fill="x")
         
         self.combo_fmt = ctk.CTkComboBox(self.sidebar, values=["epub", "pdf", "cbz"], state="readonly")
         self.combo_fmt.set("epub")
-        self.combo_fmt.pack(pady=10)
+        self.combo_fmt.pack(pady=5)
+
+        self.var_optimize = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(self.sidebar, text="Otimizar para Kindle", variable=self.var_optimize).pack(pady=5)
 
         self.btn_local = ctk.CTkButton(self.sidebar, text="Converter Pastas Locais", fg_color="#005580", command=self.converter_local)
-        self.btn_local.pack(pady=10, padx=20, fill="x")
+        self.btn_local.pack(pady=(5, 10), padx=20, fill="x")
 
         # Main
         self.main = ctk.CTkFrame(self, fg_color="transparent")
@@ -56,11 +61,13 @@ class App(ctk.CTk):
         self.entry_url = ctk.CTkEntry(self.main, placeholder_text="Link do mangá...", height=45)
         self.entry_url.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         ctk.CTkButton(self.main, text="BUSCAR", width=120, height=45, command=self.analisar).grid(row=0, column=1, padx=10)
+        
         self.fr_selection = ctk.CTkFrame(self)
         self.fr_selection.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
         ctk.CTkButton(self.fr_selection, text="Selecionar Todos", fg_color="#333", command=self.selecionar_todos).pack(side="left", padx=5)
         ctk.CTkButton(self.fr_selection, text="Selecionar Intervalo", fg_color="#333", command=self.selecionar_intervalo).pack(side="left", padx=5)
         ctk.CTkButton(self.fr_selection, text="Limpar Seleção", fg_color="#555", command=self.limpar_selecao).pack(side="left", padx=5)
+        
         self.scroll = ctk.CTkScrollableFrame(self.main, label_text="Capítulos")
         self.scroll.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
 
@@ -114,6 +121,7 @@ class App(ctk.CTk):
                         w['var'].set(False)
             except ValueError:
                 messagebox.showerror("Erro", "Formato inválido. Use número-número (ex: 1-15).")
+                
     def analisar(self):
         url = self.entry_url.get()
         if url: threading.Thread(target=self._th_an, args=(url,), daemon=True).start()
@@ -124,7 +132,6 @@ class App(ctk.CTk):
             info, caps, _ = res
             self.info = info
             
-            # Atualiza a descrição na interface
             def atualizar_interface():
                 self.txt_desc.configure(state="normal")
                 self.txt_desc.delete("1.0", "end")
@@ -165,7 +172,8 @@ class App(ctk.CTk):
         v = self.entry_vol.get() or self.info.get('title', 'Manga')
         f = self.combo_fmt.get()
         m = 'volume' if self.var_vol.get() else 'single'
-        self.engine.download_queue(q, self.base_dir, m, f, v, self.path_cover, self._upd, self.info.get('title', 'Manga'))
+        opt = self.var_optimize.get()
+        self.engine.download_queue(q, self.base_dir, m, f, v, self.path_cover, self._upd, self.info.get('title', 'Manga'), opt)
         self.after(0, lambda: [self.btn_go.configure(state="normal"), messagebox.showinfo("Fim", "Concluído!")])
 
     def _upd(self, idx, msg, progresso):
@@ -176,7 +184,6 @@ class App(ctk.CTk):
         ])
 
     def converter_local(self):
-        # Abre uma janela para selecionar a pasta do Mangá já organizada em volumes.
         diretorio = filedialog.askdirectory(title="Selecione a pasta principal do Mangá (que contém os volumes)")
         if diretorio:
             formato = self.combo_fmt.get()
@@ -186,7 +193,8 @@ class App(ctk.CTk):
             threading.Thread(target=self._th_local, args=(diretorio, formato), daemon=True).start()
 
     def _th_local(self, diretorio, formato):
-        self.engine.convert_local_volumes(diretorio, formato, self.path_cover, self._upd_local)
+        opt = self.var_optimize.get()
+        self.engine.convert_local_volumes(diretorio, formato, self.path_cover, self._upd_local, opt)
         self.after(0, lambda: [
             self.btn_go.configure(state="normal"), 
             self.btn_local.configure(state="normal"),
