@@ -56,7 +56,7 @@ class Engine:
             return info, sorted(caps, key=lambda x: x['num']), "OK"
         except: return None, None, "Falha na análise."
 
-    def download_queue(self, queue, base_path, mode, format, vol_name, cover_input, status_cb, manga_title):
+    def download_queue(self, queue, base_path, mode, format, vol_name, cover_input, status_cb, manga_title, optimize=False):
         manga_path = os.path.join(base_path, manga_title)
         os.makedirs(manga_path, exist_ok=True)
         
@@ -88,16 +88,16 @@ class Engine:
             
             processed.append(path)
             if mode == 'single':
-                self._convert(format, [path], os.path.join(manga_path, item['folder']), None)
+                self._convert(format, [path], os.path.join(manga_path, item['folder']), None, optimize)
             status_cb(item['gui_id'], "Pronto", (i + 1) / len(queue))
 
         if mode == 'volume':
-            self._convert(format, processed, os.path.join(manga_path, vol_name), capa_final)
+            self._convert(format, processed, os.path.join(manga_path, vol_name), capa_final, optimize)
 
-    def _convert(self, fmt, paths, dest, capa):
-        if fmt == 'epub': converters.criar_epub(paths, dest, capa)
-        elif fmt == 'pdf': converters.criar_pdf(paths, dest, capa)
-        elif fmt == 'cbz': converters.criar_cbz(paths, dest, capa)
+    def _convert(self, fmt, paths, dest, capa, optimize=False):
+        if fmt == 'epub': converters.criar_epub(paths, dest, capa, optimize)
+        elif fmt == 'pdf': converters.criar_pdf(paths, dest, capa, optimize)
+        elif fmt == 'cbz': converters.criar_cbz(paths, dest, capa, optimize)
 
     def _save(self, url, path):
         try:
@@ -106,7 +106,7 @@ class Engine:
             return True
         except: return False
 
-    def convert_local_volumes(self, manga_path, format, cover_input, status_cb):
+    def convert_local_volumes(self, manga_path, format, cover_input, status_cb, optimize=False):
         #Lê pastas organizadas (ex: Volumes) e converte cada uma num ficheiro individual com suporte a capas locais.
         try:
             # Lista apenas as subpastas (ignorando ficheiros soltos)
@@ -146,7 +146,7 @@ class Engine:
                 elif cover_input:
                     capa_final = converters.preparar_capa(cover_input, manga_path)
                 
-                self._convert(format, paths_para_converter, dest, capa_final)
+                self._convert(format, paths_para_converter, dest, capa_final, optimize)
                 
             status_cb("Pronto", 1.0)
         except Exception as e:
