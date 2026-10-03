@@ -12,12 +12,23 @@ from cbz.page import PageInfo
 # Permite carregar imagens que tenham sido parcialmente cortadas no download
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+# ==============================================================================
+# CONFIGURAÇÕES DE OTIMIZAÇÃO PARA O E-READER (FÁCIL MODIFICAÇÃO)
+# Altere os valores abaixo caso mude de modelo de Kindle ou prefira outros ajustes
+# ==============================================================================
+KINDLE_MAX_WIDTH = 1236      # Largura da tela em pixels (Padrão Paperwhite 11: 1236)
+KINDLE_MAX_HEIGHT = 1648     # Altura da tela em pixels (Padrão Paperwhite 11: 1648)
+O_JPEG_QUALITY = 80          # Qualidade da imagem final (0 a 100). 60 reduz muito o peso.
+O_CONTRAST_FACTOR = 1.2      # Fator de contraste (1.0 = original, 1.5 = +50% contraste)
+O_WEBTOON_RATIO = 2.0        # Proporção Altura/Largura para fatiar webtoons compridos
+# ==============================================================================
+
 def natural_keys(text):
-    """Ordenação humana para listas (ex: 1, 2, 10)."""
+    '''Ordenação humana para listas (ex: 1, 2, 10).'''
     return [(int(c) if c.isdigit() else c) for c in re.split(r'(\d+)', text)]
 
 def preparar_capa(caminho_original, pasta_destino):
-    """Normaliza a imagem para ser usada como capa estruturalmente compatível."""
+    '''Normaliza a imagem para ser usada como capa estruturalmente compatível.'''
     if not caminho_original or not os.path.exists(caminho_original):
         return None
     try:
@@ -29,10 +40,11 @@ def preparar_capa(caminho_original, pasta_destino):
         return None
 
 def check_image(full_path, fmt, optimize=False):
-    """
-    Remove margens brancas e otimiza a cor, MAS não altera a resolução da imagem.
-    Delega o ajuste e esticamento para o software do e-reader.
-    """
+    '''
+    Processa a imagem de forma estrita:
+    - Se optimize=True: aplica auto-crop, P&B, contraste e limite máximo configurado.
+    - Se optimize=False: mantém a imagem exatamente como veio, sem mexer na qualidade ou resolução.
+    '''
     try:
         with Image.open(full_path) as img_aberta:
             if img_aberta.mode in ('RGBA', 'LA') or (img_aberta.mode == 'P' and 'transparency' in img_aberta.info):
@@ -45,6 +57,11 @@ def check_image(full_path, fmt, optimize=False):
     if img.width < 250 or img.height < 250:
         return []
 
+    base_path, ext = os.path.splitext(full_path)
+
+    # ==========================================
+    # CAMINHO 1: COM OTIMIZAÇÃO ATIVADA
+    # ==========================================
     if optimize:
         # 1. AUTO-CROP: REMOVE MARGENS BRANCAS INÚTEIS
         gray = img.convert("L")
@@ -59,27 +76,34 @@ def check_image(full_path, fmt, optimize=False):
             d = min(img.height, d + 5)
             img = img.crop((l, u, r, d))
 
-    width, height = img.size
-
-    # Rotação para EPUB de páginas duplas
-    if width > height and fmt == '.epub':
-        img = img.rotate(-90, expand=True)
         width, height = img.size
 
-    base_path, _ = os.path.splitext(full_path)
+        # Rotação para EPUB de páginas duplas
+        if width > height and fmt == '.epub':
+            img = img.rotate(-90, expand=True)
+            width, height = img.size
 
-    if optimize:
         # Tratamento visual de Kindle (Contraste e Preto e Branco)
         img = img.convert('L')
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.2)
+        img = enhancer.enhance(O_CONTRAST_FACTOR)
         
-        # 2. Lógica para Webtoons (Tiras muito compridas)
-        # Fatiamos tiras compridas para o Kindle não engasgar, MAS SEM ESTICAR a imagem
-        if height / float(width) > 2.0:
+        try:
+            filtro = Image.Resampling.LANCZOS
+        except AttributeError:
+            filtro = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
+
+        # REDUÇÃO DE PESO: Limita a largura máxima com base nas variáveis do topo
+        if width > KINDLE_MAX_WIDTH:
+            ratio = KINDLE_MAX_WIDTH / float(width)
+            new_h = int(height * ratio)
+            img = img.resize((KINDLE_MAX_WIDTH, new_h), filtro)
+            width, height = img.size
+
+        # Lógica para Webtoons (Tiras muito compridas)
+        if height / float(width) > O_WEBTOON_RATIO:
             paths = []
-            # Calcula a altura ideal de cada fatia baseada na proporção da tela (1648/1236 = ~1.33)
-            chunk_height = int(width * (1648 / 1236.0))
+            chunk_height = int(width * (KINDLE_MAX_HEIGHT / float(KINDLE_MAX_WIDTH)))
             num_parts = (height // chunk_height) + (1 if height % chunk_height > 0 else 0)
             
             for p in range(num_parts):
@@ -88,31 +112,36 @@ def check_image(full_path, fmt, optimize=False):
                 
                 chunk = img.crop((0, top, width, bottom))
                 chunk_path = f"{base_path}_part{p}.jpg"
-                chunk.convert('RGB').save(chunk_path, format='JPEG', quality=85, optimize=True, progressive=False)
+                chunk.convert('RGB').save(chunk_path, format='JPEG', quality=O_JPEG_QUALITY, optimize=True, progressive=False)
                 paths.append(chunk_path)
                 
             return paths
             
-        # 3. Lógica para Mangá Padrão
+        # Lógica para Mangá Padrão otimizado
         else:
-            # SEM REDIMENSIONAMENTO: Mantemos as proporções exatas após o corte.
             final_path = f"{base_path}_opt.jpg"
-            img.convert('RGB').save(final_path, format='JPEG', quality=85, optimize=True, progressive=False)
+            img.convert('RGB').save(final_path, format='JPEG', quality=O_JPEG_QUALITY, optimize=True, progressive=False)
             return [final_path]
             
+    # ==========================================
+    # CAMINHO 2: SEM OTIMIZAÇÃO (ORIGINAL)
+    # ==========================================
     else:
-        # Caminho sem otimização
+        # Apenas garante extensão correta em .jpg sem alterar qualidade ou tamanho
         final_path = f"{base_path}.jpg"
-        if final_path != full_path or os.path.splitext(full_path)[1].lower() != '.jpg':
-            try:
-                img.convert('RGB').save(final_path, format='JPEG', quality=95, optimize=True, progressive=False)
-            except Exception:
+        try:
+            # Se a extensão original já for jpg e o caminho bater, apenas salva sem reprocessamento agressivo
+            if os.path.exists(full_path) and ext.lower() in ['.jpg', '.jpeg']:
                 return [full_path]
-        return [final_path]
+            
+            img.save(final_path, format='JPEG', quality=100)
+            return [final_path]
+        except Exception:
+            return [full_path]
 
 
 def criar_cbz(pastas, destino, capa=None, optimize=False):
-    """Cria arquivo Comic Book Zip com suporte a fatiamento."""
+    '''Cria arquivo Comic Book Zip com suporte a fatiamento.'''
     try:
         fmt='.cbz'
         if not destino.endswith(fmt): destino += fmt
@@ -144,7 +173,7 @@ def criar_cbz(pastas, destino, capa=None, optimize=False):
 
 
 def criar_pdf(pastas, destino, capa=None, optimize=False):
-    """Cria PDF com marcadores e suporte a fatiamento."""
+    '''Cria PDF com marcadores e suporte a fatiamento.'''
     try:
         fmt='.pdf'
         if not destino.endswith(fmt): destino += fmt
@@ -183,7 +212,7 @@ def criar_pdf(pastas, destino, capa=None, optimize=False):
 
 
 def criar_epub(pastas, destino, capa=None, optimize=False):
-    """Cria EPUB com suporte à renderização exata das partes fatiadas e originais."""
+    '''Cria EPUB com suporte à renderização exata das partes fatiadas e originais.'''
     try:
         fmt='.epub'
         if not destino.endswith(fmt): destino += fmt
@@ -241,11 +270,11 @@ def criar_epub(pastas, destino, capa=None, optimize=False):
         with zipfile.ZipFile(destino, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
             
-            container_xml = """<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>"""
+            container_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'''
             zf.writestr("META-INF/container.xml", container_xml)
 
-            css_content = """@charset "utf-8"; body { margin: 0; padding: 0; text-align: center; background-color: white; } @page { margin: 0; padding: 0; } div { margin: 0; padding: 0; width: 100vw; height: 100vh; }"""
+            css_content = '''@charset "utf-8"; body { margin: 0; padding: 0; text-align: center; background-color: white; } @page { margin: 0; padding: 0; } div { margin: 0; padding: 0; width: 100vw; height: 100vh; }'''
             zf.writestr("stylesheet.css", css_content)
 
             for src, dest in image_files_to_write:
@@ -253,10 +282,10 @@ def criar_epub(pastas, destino, capa=None, optimize=False):
                     zf.write(src, dest)
                 except: pass
 
-            page_template = """<?xml version="1.0" encoding="utf-8"?>
+            page_template = '''<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>{title}</title><link href="../stylesheet.css" rel="stylesheet" type="text/css"/><meta name="viewport" content="width={w}, height={h}"/></head>
-<body style="margin:0;padding:0"><div style="width:100vw;height:100vh;margin:0;padding:0;"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 {w} {h}"><image width="{w}" height="{h}" xlink:href="../images/{filename}"/></svg></div></body></html>"""
+<body style="margin:0;padding:0"><div style="width:100vw;height:100vh;margin:0;padding:0;"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 {w} {h}"><image width="{w}" height="{h}" xlink:href="../images/{filename}"/></svg></div></body></html>'''
 
             for info in images_info:
                 zf.writestr(f"pages/{info['page_id']}.xhtml", page_template.format(title=info['page_id'], w=info['width'], h=info['height'], filename=info['filename']))
@@ -265,7 +294,7 @@ def criar_epub(pastas, destino, capa=None, optimize=False):
             zf.writestr("toc.ncx", f'''<?xml version="1.0" encoding="UTF-8"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="{unique_id}"/><meta name="dtb:depth" content="1"/><meta name="dtb:totalPageCount" content="0"/><meta name="dtb:maxPageNumber" content="0"/></head><docTitle><text>{titulo}</text></docTitle><navMap>{navpoints}</navMap></ncx>''')
 
             toc_li = "".join([f'<li><a href="pages/{pid}.xhtml">{title}</a></li>\n' for pid, title in toc_items])
-            zf.writestr("toc.xhtml", f"""<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>TOC</title></head><body><nav epub:type="toc" id="toc"><h1>Índice</h1><ol>{toc_li}</ol></nav></body></html>""")
+            zf.writestr("toc.xhtml", f'''<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>TOC</title></head><body><nav epub:type="toc" id="toc"><h1>Índice</h1><ol>{toc_li}</ol></nav></body></html>''')
 
             manifest_items = '<item id="style" href="stylesheet.css" media-type="text/css"/>\n<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>\n<item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n'
             for info in images_info:
