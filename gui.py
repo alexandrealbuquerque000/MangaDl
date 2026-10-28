@@ -29,15 +29,15 @@ class App(ctk.CTk):
         self.presets = {
             "Kindle Paperwhite 11": {
                 'fmt': "epub", 'w': "1236", 'h': "1648", 'rtl': True, 
-                'crop': True, 'gray': True, 'contrast_val': 1.2, 'dp_mode': "Rotacionar", 'qual': 85
+                'crop': True, "fill": False, 'gray': True, 'contrast_val': 1.2, 'dp_mode': "Rotacionar", 'qual': 85
             },
             "Galaxy Tab S10 Lite": {
                 'fmt': "cbz", 'w': "1320", 'h': "2112", 'rtl': False, 
-                'crop': False, 'gray': False, 'contrast_val': 1.0, 'dp_mode': "Manter", 'qual': 100
+                'crop': False, "fill": False, 'gray': False, 'contrast_val': 1.0, 'dp_mode': "Manter", 'qual': 100
             },
             "Personalizado": {
                 'fmt': "pdf", 'w': "1200", 'h': "1600", 'rtl': False, 
-                'crop': False, 'gray': False, 'contrast_val': 1.0, 'dp_mode': "Manter", 'qual': 100
+                'crop': False, "fill": False, 'gray': False, 'contrast_val': 1.0, 'dp_mode': "Manter", 'qual': 100
             }
         }
         self.combo_dev = ctk.CTkComboBox(self.sidebar, values=list(self.presets.keys()), command=self._on_dev_change)
@@ -69,12 +69,14 @@ class App(ctk.CTk):
         self.var_autocrop = ctk.BooleanVar(value=True)
         self.chk_autocrop = ctk.CTkCheckBox(self.sidebar, text="Auto-Crop (Remover Bordas)", variable=self.var_autocrop)
         self.chk_autocrop.pack(pady=4, padx=15, anchor="w")
+
+        self.var_fill_screen = ctk.BooleanVar(value=True)
+        self.chk_fill_screen = ctk.CTkCheckBox(self.sidebar, text="Preencher Tela (Esticando)", variable=self.var_fill_screen)
+        self.chk_fill_screen.pack(pady=4, padx=15, anchor="w")
         
         self.var_gray = ctk.BooleanVar(value=True)
         self.chk_gray = ctk.CTkCheckBox(self.sidebar, text="Forçar Preto e Branco", variable=self.var_gray)
         self.chk_gray.pack(pady=4, padx=15, anchor="w")
-
-        # DOC: O elemento visual `combo_stretch` foi apagado para limpar a interface
         
         ctk.CTkLabel(self.sidebar, text="Ajuste de Contraste (1.0 = Original):", font=("Arial", 11)).pack(anchor="w", padx=15, pady=(10, 0))
         self.fr_slider = ctk.CTkFrame(self.sidebar, fg_color="transparent")
@@ -153,7 +155,7 @@ class App(ctk.CTk):
         # DOC: 'self.combo_stretch' foi removido desta lista de controlo
         widgets_control = [
             self.entry_w, self.entry_h, self.seg_double_page, 
-            self.chk_rtl, self.chk_autocrop, self.chk_gray, 
+            self.chk_rtl, self.chk_autocrop, self.chk_fill_screen, self.chk_gray, 
             self.slider_contrast, self.slider_qual, self.combo_fmt
         ]
         
@@ -170,6 +172,7 @@ class App(ctk.CTk):
         
         self.var_rtl.set(p['rtl'])
         self.var_autocrop.set(p['crop'])
+        self.var_fill_screen.set(p['fill'])
         self.var_gray.set(p['gray'])
         
         self.slider_contrast.set(p['contrast_val'])
@@ -219,7 +222,6 @@ class App(ctk.CTk):
                 w['lbl_vol'].configure(text="📄 Separado")
 
     def get_options(self):
-        # DOC: A chave 'stretch_mode' já não é enviada para o backend
         w = self.entry_w.get()
         h = self.entry_h.get()
         return {
@@ -231,7 +233,8 @@ class App(ctk.CTk):
             'width': int(w) if w.isdigit() else 0,
             'height': int(h) if h.isdigit() else 0,
             'double_page_mode': self.var_double_page.get(),
-            'quality': int(self.slider_qual.get())
+            'quality': int(self.slider_qual.get()),
+            'fill_screen': self.var_fill_screen.get()
         }
 
     def on_close(self):
