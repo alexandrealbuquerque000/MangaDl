@@ -10,11 +10,18 @@ class Engine:
         self.root_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
         self.config_path = os.path.join(self.root_dir, config_filename)
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'})
-        self.sites = self._load_cfg()
         
+        # DOC: Cabeçalhos avançados para simular um navegador real e evitar bloqueio anti-bot.
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+        })
+        
+        self.sites = self._load_cfg()
         self.TAG_IMAGEM = "img"
-        self.ATRIBUTOS_POSSIVEIS = ["data-src", "data-lazy-src", "src"]
+        # DOC: Lista expandida para capturar imagens ocultas por lazy-loading em qualquer site.
+        self.ATRIBUTOS_POSSIVEIS = ["data-src", "data-lazy-src", "data-altsrc", "data-v-image", "src"]
 
     def _load_cfg(self):
         try:
@@ -113,7 +120,6 @@ class Engine:
 
     def clean_chapter_images(self, chapter_path):
         arquivos = sorted([f for f in os.listdir(chapter_path) if f.lower().endswith(('.jpg', '.png', '.webp', '.jpeg'))])
-        
         for arq in arquivos:
             p = os.path.join(chapter_path, arq)
             if os.path.getsize(p) <= 15360:
@@ -125,7 +131,6 @@ class Engine:
             
         first_path = os.path.join(chapter_path, arquivos[0])
         second_path = os.path.join(chapter_path, arquivos[1])
-        
         last_path = os.path.join(chapter_path, arquivos[-1])
         prev_last_path = os.path.join(chapter_path, arquivos[-2])
         
@@ -133,16 +138,13 @@ class Engine:
             with Image.open(first_path) as img_first, Image.open(second_path) as img_sec:
                 colors_first = len(img_first.convert("L").getcolors(maxcolors=100000) or [])
                 colors_sec = len(img_sec.convert("L").getcolors(maxcolors=100000) or [])
-                if img_first.height != img_sec.height or colors_first < (colors_sec * 0.4):
-                    os.remove(first_path)
+                if img_first.height != img_sec.height or colors_first < (colors_sec * 0.4): os.remove(first_path)
         except: pass
-
         try:
             with Image.open(last_path) as img_last, Image.open(prev_last_path) as img_prev:
                 colors_last = len(img_last.convert("L").getcolors(maxcolors=100000) or [])
                 colors_prev = len(img_prev.convert("L").getcolors(maxcolors=100000) or [])
-                if img_last.height != img_prev.height or colors_last < (colors_prev * 0.4):
-                    os.remove(last_path)
+                if img_last.height != img_prev.height or colors_last < (colors_prev * 0.4): os.remove(last_path)
         except: pass
 
     def download_queue(self, queue, base_path, format, status_cb, manga_title, options):
@@ -152,15 +154,11 @@ class Engine:
         volumes_dict = {}
         for q in queue:
             vol_assigned = q.get('vol')
-            if not vol_assigned:
-                vol_assigned = f"__INDIVIDUAL__{q['folder']}"
-                
+            if not vol_assigned: vol_assigned = f"__INDIVIDUAL__{q['folder']}"
             if vol_assigned not in volumes_dict:
                 volumes_dict[vol_assigned] = {'chapters': [], 'cover': q.get('cover'), 'is_individual': vol_assigned.startswith('__INDIVIDUAL__')}
-            
             volumes_dict[vol_assigned]['chapters'].append(q)
-            if q.get('cover'):
-                volumes_dict[vol_assigned]['cover'] = q.get('cover')
+            if q.get('cover'): volumes_dict[vol_assigned]['cover'] = q.get('cover')
 
         total_chapters = len(queue)
         processed_chapters = 0
@@ -181,20 +179,64 @@ class Engine:
                 if not (os.path.exists(path) and len(os.listdir(path)) > 2):
                     os.makedirs(path, exist_ok=True)
                     try:
-                        s = BeautifulSoup(self.session.get(item['url']).content, 'html.parser')
+                        r_main = self.session.get(item['url'], timeout=15)
+                        s = BeautifulSoup(r_main.content, 'html.parser')
                         cont = s.select_one(item['rules']['selectors']['container_imagens'])
                         
-                        imgs = (cont if cont else s).select(self.TAG_IMAGEM)
-                        urls = [img.get(attr).strip() for img in imgs for attr in self.ATRIBUTOS_POSSIVEIS if img.get(attr)]
-                        urls = list(dict.fromkeys(urls)) 
+                        urls = []
+                        hx_url = None
                         
+                        # DOC: ESTRATÉGIA 1 - Injeção Dinâmica e HTMX
+                        if cont:
+                            if cont.has_attr('hx-get'):
+                                from urllib.parse import urljoin
+                                hx_url = urljoin(item['url'], cont.get('hx-get'))
+                            elif "weebcentral.com" in item['url']:
+                                hx_url = item['url'].rstrip('/') + '/images'
+                            
+                            if hx_url:
+                                headers_htmx = {'HX-Request': 'true', 'Referer': item['url']}
+                                r_dinamico = self.session.get(hx_url, headers=headers_htmx, timeout=15)
+                                s_dinamico = BeautifulSoup(r_dinamico.content, 'html.parser')
+                                imgs = s_dinamico.select(self.TAG_IMAGEM)
+                                
+                                for img in imgs:
+                                    for attr in self.ATRIBUTOS_POSSIVEIS:
+                                        val = img.get(attr)
+                                        if val:
+                                            urls.append(val.strip())
+                                            break
+                        
+                        # DOC: ESTRATÉGIA 2 - Expressões Regulares para Javascript/JSON
+                        if not urls:
+                            scripts = s.find_all('script')
+                            for script in scripts:
+                                if script.string:
+                                    texto_limpo = script.string.replace('\\/', '/')
+                                    encontrados = re.findall(r'["\'](https?://[^\s<>"\']+?\.(?:jpg|jpeg|png|webp))["\']', texto_limpo, re.IGNORECASE)
+                                    if encontrados: urls.extend(encontrados)
+                        
+                        # DOC: ESTRATÉGIA 3 - Varredura agressiva clássica
+                        if not urls:
+                            imgs = (cont if cont else s).select(self.TAG_IMAGEM)
+                            for img in imgs:
+                                for attr in self.ATRIBUTOS_POSSIVEIS:
+                                    val = img.get(attr)
+                                    if val and val.startswith(('http', '//')):
+                                        urls.append(val.strip())
+                                        break
+                        
+                        urls = list(dict.fromkeys(urls)) 
+                        urls = ["https:" + u if u.startswith('//') else u for u in urls]
+                        
+                        # DOC: Envio do URL original para enganar a proteção do servidor final
                         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
                             for idx, u in enumerate(urls, 1):
-                                if u.startswith('//'): u = "https:" + u
-                                ex.submit(self._save, u, os.path.join(path, f"{idx:04d}.jpg"))
+                                ex.submit(self._save, u, os.path.join(path, f"{idx:04d}.jpg"), item['url'])
                                 
                         self.clean_chapter_images(path)
-                    except: pass
+                    except Exception as e:
+                        pass
                 
                 processed_paths.append(path)
                 processed_chapters += 1
@@ -208,49 +250,44 @@ class Engine:
         elif fmt == 'pdf': converters.criar_pdf(paths, dest, capa, options, cover_source=cover_source)
         elif fmt == 'cbz': converters.criar_cbz(paths, dest, capa, options, cover_source=cover_source)
 
-    def _save(self, url, path):
+    def _save(self, url, path, referer_url=None):
+        # DOC: Bypass para hotlinking - O servidor exige saber a origem do pedido
         try:
-            r = self.session.get(url, timeout=15)
-            with open(path, 'wb') as f: f.write(r.content)
-            return True
-        except: return False
+            headers_imagem = {'Referer': referer_url} if referer_url else {}
+            r = self.session.get(url, headers=headers_imagem, timeout=15)
+            if r.status_code == 200:
+                with open(path, 'wb') as f: f.write(r.content)
+                return True
+            else:
+                return False
+        except Exception as e: 
+            return False
 
     def convert_local_volumes(self, manga_path, format, status_cb, options):
         try:
             volumes = [d for d in os.listdir(manga_path) if os.path.isdir(os.path.join(manga_path, d))]
             volumes.sort()
-            if not volumes:
-                status_cb("Nenhuma pasta encontrada.", 1.0)
-                return
-
+            if not volumes: return status_cb("Nenhuma pasta encontrada.", 1.0)
             for i, vol_name in enumerate(volumes):
                 vol_path = os.path.join(manga_path, vol_name)
                 status_cb(f"A converter {vol_name}...", i / len(volumes))
-                
                 subpastas = [os.path.join(vol_path, c) for c in os.listdir(vol_path) if os.path.isdir(os.path.join(vol_path, c))]
                 subpastas.sort()
                 paths_para_converter = subpastas if subpastas else [vol_path]
                 dest = os.path.join(manga_path, vol_name) 
-                
-                capa_local = None
-                for arquivo in os.listdir(vol_path):
-                    if arquivo.lower().startswith('cover.') and arquivo.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                        capa_local = os.path.join(vol_path, arquivo)
-                        break 
-                
+                capa_local = next((os.path.join(vol_path, f) for f in os.listdir(vol_path) if f.lower().startswith('cover.') and f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))), None)
                 capa_final = converters.preparar_capa(capa_local, manga_path, options) if capa_local else None
-                
                 self._convert(format, paths_para_converter, dest, capa_final, options, cover_source=capa_local)
             status_cb("Pronto", 1.0)
-        except Exception as e:
-            status_cb("Erro na conversão", 1.0)
+        except Exception as e: status_cb("Erro na conversão", 1.0)
 
     def clear_cache(self, base_path, manga_title):
         manga_path = os.path.join(base_path, manga_title)
         if os.path.exists(manga_path):
             for item in os.listdir(manga_path):
                 item_path = os.path.join(manga_path, item)
-                if os.path.isdir(item_path): shutil.rmtree(item_path, onexc=self._force_remove)
+                # DOC: Reposição da função padrão onerror para evitar erros de remoção forçada
+                if os.path.isdir(item_path): shutil.rmtree(item_path, onerror=self._force_remove)
                 elif "cover_" in item: os.remove(item_path)
 
     def _force_remove(self, func, path, _):
