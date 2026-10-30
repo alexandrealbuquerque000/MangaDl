@@ -3,7 +3,7 @@ import zipfile
 import re
 import uuid
 from datetime import datetime
-from PIL import Image, ImageEnhance, ImageFile
+from PIL import Image, ImageEnhance, ImageFile, ImageOps
 from pypdf import PdfWriter
 from cbz.comic import ComicInfo
 from cbz.constants import PageType, YesNo, Manga, Format
@@ -115,28 +115,20 @@ class MangaConverter:
         return enhancer.enhance(factor)
 
     @staticmethod
-    def fill_screen_resize(img, target_width, target_height):
+    def resize_image(img, resize_mode, target_width, target_height):
         if not target_width or not target_height: 
             return img
         try:
             filter_mode = Image.Resampling.LANCZOS
         except AttributeError:
             filter_mode = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
-        return img.resize((target_width, target_height), filter_mode)
-
-    @staticmethod
-    def resize_image(img, max_width, max_height):
-        if not max_width or not max_height: 
+        if resize_mode=="Keep":
+            img.thumbnail((target_width, target_height), filter_mode)
             return img
-        if img.width > max_width:
-            ratio = max_width / float(img.width)
-            new_h = int(img.height * ratio)
-            try: 
-                filter_mode = Image.Resampling.LANCZOS
-            except AttributeError: 
-                filter_mode = getattr(Image, 'LANCZOS', getattr(Image, 'ANTIALIAS', 1))
-            img = img.resize((max_width, new_h), filter_mode)
-        return img
+        elif resize_mode=="Stretch":
+            return img.resize((target_width, target_height), filter_mode)
+        else:
+            return ImageOps.fit(img, (target_width, target_height), method=filter_mode)
 
     @staticmethod
     def _process_and_save_image(img, base_path, fmt, options=None, is_cover=False):
@@ -146,7 +138,6 @@ class MangaConverter:
         KINDLE_MAX_WIDTH = int(options.get('width', 0))
         KINDLE_MAX_HEIGHT = int(options.get('height', 0))
         JPEG_QUALITY = int(options.get('quality', 85))
-        WEBTOON_RATIO = WEBTOON_ASPECT_RATIO_THRESHOLD
 
         if options.get('autocrop', False):
             img = MangaConverter.auto_crop_image(img)
@@ -175,15 +166,14 @@ class MangaConverter:
             if options.get('contrast', False):
                 sub_img = MangaConverter.adjust_contrast(sub_img, factor=options.get('contrast_factor', 1.2))
 
+            resize_mode = options.get('resize_mode', 'Keep')
+           
             if KINDLE_MAX_WIDTH > 0 and KINDLE_MAX_HEIGHT > 0:
-                if options.get('fill_screen', False):
-                    sub_img = MangaConverter.fill_screen_resize(img, KINDLE_MAX_WIDTH, KINDLE_MAX_HEIGHT)
-                else:
-                    sub_img = MangaConverter.resize_image(sub_img, KINDLE_MAX_WIDTH, KINDLE_MAX_HEIGHT)
+                sub_img = MangaConverter.resize_image(sub_img, resize_mode, KINDLE_MAX_WIDTH, KINDLE_MAX_HEIGHT)    
 
             sub_base = f"{base_path}_{idx}" if len(images_to_process) > 1 else base_path
 
-            if is_cover or KINDLE_MAX_WIDTH == 0 or (sub_img.height / float(sub_img.width) <= WEBTOON_RATIO):
+            if is_cover or KINDLE_MAX_WIDTH == 0 or (sub_img.height / float(sub_img.width) <= WEBTOON_ASPECT_RATIO_THRESHOLD):
                 final_path = f"{sub_base}_opt.jpg"
                 sub_img.convert('RGB').save(final_path, format='JPEG', quality=JPEG_QUALITY, optimize=True, progressive=False)
                 final_paths.append(final_path)
