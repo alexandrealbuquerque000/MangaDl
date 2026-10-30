@@ -1,6 +1,6 @@
 # 📚 Manga Downloader
 
-<img width="1142" height="693" alt="image" src="https://github.com/user-attachments/assets/ee256097-2f7d-4cbb-b114-56171a0563c1" />
+<img width="990" height="760" alt="Captura de tela 2026-10-30 151155" src="https://github.com/user-attachments/assets/3625707a-ff6e-4819-852e-faedc2c0986c" />
 
 A modern desktop application built with **Python** and **CustomTkinter**, designed to download, optimize, process, and convert manga chapters into high-quality digital formats (**EPUB, PDF, and CBZ**), with a special focus on e-readers like the **Amazon Kindle**.
 
