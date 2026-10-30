@@ -52,6 +52,11 @@ class MangaApp(ctk.CTk):
         self.seg_double_page = ctk.CTkSegmentedButton(self.sidebar, values=["Dividir", "Rotacionar", "Manter"], variable=self.var_double_page)
         self.seg_double_page.pack(pady=4, padx=15, fill="x")
 
+        ctk.CTkLabel(self.sidebar, text="🔍 Resize Mode", font=("Arial", 13, "bold"), text_color="#00a8cc").pack(anchor="w", padx=10, pady=(15, 5))
+        self.var_resize_mode = ctk.StringVar(value="Keep")
+        self.seg_resize_mode = ctk.CTkSegmentedButton(self.sidebar, values=["Keep", "Stretch", "Zoom"], variable=self.var_resize_mode)
+        self.seg_resize_mode.pack(pady=4, padx=15, fill="x")
+
         ctk.CTkLabel(self.sidebar, text="⚙️ Fine Visual Adjustments", font=("Arial", 13, "bold"), text_color="#00a8cc").pack(anchor="w", padx=10, pady=(15, 5))
         
         self.var_rtl = ctk.BooleanVar(value=True)
@@ -61,10 +66,6 @@ class MangaApp(ctk.CTk):
         self.var_autocrop = ctk.BooleanVar(value=True)
         self.chk_autocrop = ctk.CTkCheckBox(self.sidebar, text="Auto-Crop (Remove Borders)", variable=self.var_autocrop)
         self.chk_autocrop.pack(pady=4, padx=15, anchor="w")
-
-        self.var_fill_screen = ctk.BooleanVar(value=True)
-        self.chk_fill_screen = ctk.CTkCheckBox(self.sidebar, text="Fill Screen (Stretch)", variable=self.var_fill_screen)
-        self.chk_fill_screen.pack(pady=4, padx=15, anchor="w")
         
         self.var_gray = ctk.BooleanVar(value=True)
         self.chk_gray = ctk.CTkCheckBox(self.sidebar, text="Force Grayscale", variable=self.var_gray)
@@ -93,50 +94,59 @@ class MangaApp(ctk.CTk):
 
         self._on_device_change("Kindle Paperwhite 11")
 
-        # ---------------- MAIN AREA ----------------
+        # ---------------- MAIN AREA  ----------------
+
         self.main = ctk.CTkFrame(self, fg_color="transparent")
         self.main.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        
         self.main.grid_columnconfigure(0, weight=1)
-        self.main.grid_rowconfigure(4, weight=1)
+        self.main.grid_rowconfigure(4, weight=1) 
 
-        self.entry_title = ctk.CTkEntry(self.main, placeholder_text="Manga Title (Required)", height=40)
-        self.entry_title.grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
+        self.entry_title = ctk.CTkEntry(self.main, placeholder_text="Manga Title (Required)", height=35)
+        self.entry_title.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5))
 
-        self.txt_urls = ctk.CTkTextbox(self.main, height=80)
-        self.txt_urls.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+        self.txt_urls = ctk.CTkTextbox(self.main, height=70)
+        self.txt_urls.grid(row=1, column=0, sticky="nsew", padx=5, pady=0) # nsew faz a caixa esticar
         self.txt_urls.insert("0.0", "Paste chapter links here (one per line)...")
         self.txt_urls.bind("<FocusIn>", lambda e: self.txt_urls.delete("0.0", "end") if "Paste chapter links" in self.txt_urls.get("1.0", "end-1c") else None)
 
-        self.btn_analyze = ctk.CTkButton(self.main, text="LOAD\nLINKS", width=120, height=80, command=self.analyze_chapters)
-        self.btn_analyze.grid(row=1, column=1, padx=10, pady=5)
+        self.btn_analyze = ctk.CTkButton(self.main, text="LOAD LINKS", width=100, command=self.analyze_chapters)
+        self.btn_analyze.grid(row=1, column=1, sticky="nsew", padx=(5, 5), pady=0) 
         
-        # --- VOLUME & COVER MANAGER ---
-        self.fr_assign = ctk.CTkFrame(self.main, fg_color="#1a1a1a", corner_radius=8)
-        self.fr_assign.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
+        self.fr_assign = ctk.CTkFrame(self.main, fg_color="#1a1a1a", corner_radius=6)
+        self.fr_assign.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=(10, 5))
         
-        ctk.CTkLabel(self.fr_assign, text="Assign Volume:", font=("Arial", 12, "bold")).pack(side="left", padx=10, pady=10)
-        self.entry_assign = ctk.CTkEntry(self.fr_assign, placeholder_text="Ex: Volume 01", width=130)
-        self.entry_assign.pack(side="left", padx=5)
+        for i in range(1, 5): 
+            self.fr_assign.grid_columnconfigure(i, weight=1)
+            
+        ctk.CTkLabel(self.fr_assign, text="Vol:", font=("Arial", 11, "bold")).grid(row=0, column=0, sticky="e", padx=(10, 2), pady=5)
+        self.entry_assign = ctk.CTkEntry(self.fr_assign, placeholder_text="Ex: Vol 01", height=28)
+        self.entry_assign.grid(row=0, column=1, sticky="ew", padx=2, pady=5)
         
-        ctk.CTkButton(self.fr_assign, text="Set Volume", fg_color="#005580", width=120, command=self.assign_volume).pack(side="left", padx=5)
-        ctk.CTkButton(self.fr_assign, text="Set Cover", fg_color="#b35900", width=120, command=self.assign_cover).pack(side="left", padx=5)
-        ctk.CTkButton(self.fr_assign, text="Reset", fg_color="#800000", width=100, command=self.reset_selection).pack(side="left", padx=5)
+        ctk.CTkButton(self.fr_assign, text="Set Vol", fg_color="#005580", height=28, command=self.assign_volume).grid(row=0, column=2, sticky="ew", padx=2, pady=5)
+        ctk.CTkButton(self.fr_assign, text="Set Cover", fg_color="#b35900", height=28, command=self.assign_cover).grid(row=0, column=3, sticky="ew", padx=2, pady=5)
+        ctk.CTkButton(self.fr_assign, text="Reset", fg_color="#800000", height=28, command=self.reset_selection).grid(row=0, column=4, sticky="ew", padx=(2, 10), pady=5)
 
+        # --- SELECTION MANAGER ---
         self.fr_selection = ctk.CTkFrame(self.main, fg_color="transparent")
-        self.fr_selection.grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=0)
-        ctk.CTkButton(self.fr_selection, text="Select All", fg_color="#333", width=100, command=self.select_all).pack(side="left", padx=5)
-        ctk.CTkButton(self.fr_selection, text="Select Range", fg_color="#333", width=110, command=self.select_range).pack(side="left", padx=5)
-        ctk.CTkButton(self.fr_selection, text="Deselect All", fg_color="#555", width=110, command=self.clear_selection).pack(side="left", padx=5)
+        self.fr_selection.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=0)
+        
+        for i in range(3):
+            self.fr_selection.grid_columnconfigure(i, weight=1)
+            
+        ctk.CTkButton(self.fr_selection, text="Select All", fg_color="#333", height=26, command=self.select_all).grid(row=0, column=0, sticky="ew", padx=2)
+        ctk.CTkButton(self.fr_selection, text="Select Range", fg_color="#333", height=26, command=self.select_range).grid(row=0, column=1, sticky="ew", padx=2)
+        ctk.CTkButton(self.fr_selection, text="Deselect All", fg_color="#555", height=26, command=self.clear_selection).grid(row=0, column=2, sticky="ew", padx=2)
         
         self.scroll = ctk.CTkScrollableFrame(self.main, label_text="Chapters (Checkboxes are used exclusively for assigning Volumes/Covers)")
-        self.scroll.grid(row=4, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
+        self.scroll.grid(row=4, column=0, columnspan=2, sticky="nsew", padx=5, pady=(5, 10))
 
         self.progress_bar = ctk.CTkProgressBar(self.main, height=15)
-        self.progress_bar.grid(row=5, column=0, sticky="ew", padx=10, pady=10)
+        self.progress_bar.grid(row=5, column=0, sticky="ew", padx=5, pady=(0, 5))
         self.progress_bar.set(0)
 
-        self.btn_go = ctk.CTkButton(self.main, text="START DOWNLOAD AND PROCESSING", height=45, fg_color="green", font=("Arial", 12, "bold"), command=self.start_process)
-        self.btn_go.grid(row=5, column=1, sticky="ew", padx=10, pady=10)
+        self.btn_go = ctk.CTkButton(self.main, text="Start Download", height=35, fg_color="green", font=("Arial", 12, "bold"), command=self.start_process)
+        self.btn_go.grid(row=5, column=1, sticky="ew", padx=5, pady=(0, 5))
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -147,7 +157,7 @@ class MangaApp(ctk.CTk):
 
         widgets_control = [
             self.entry_w, self.entry_h, self.seg_double_page, 
-            self.chk_rtl, self.chk_autocrop, self.chk_fill_screen, self.chk_gray, 
+            self.chk_rtl, self.chk_autocrop, self.seg_resize_mode, self.chk_gray, 
             self.slider_contrast, self.slider_qual, self.combo_fmt
         ]
         
@@ -166,7 +176,7 @@ class MangaApp(ctk.CTk):
         
         self.var_rtl.set(p['rtl'])
         self.var_autocrop.set(p['crop'])
-        self.var_fill_screen.set(p['fill'])
+        self.var_resize_mode.set(p['resize'])
         self.var_gray.set(p['gray'])
         
         self.slider_contrast.set(p['contrast_val'])
@@ -228,7 +238,7 @@ class MangaApp(ctk.CTk):
             'height': int(h) if h.isdigit() else 0,
             'double_page_mode': self.var_double_page.get(),
             'quality': int(self.slider_qual.get()),
-            'fill_screen': self.var_fill_screen.get()
+            'resize_mode': self.var_resize_mode.get()
         }
 
     def on_close(self):
@@ -291,16 +301,19 @@ class MangaApp(ctk.CTk):
             c['vol'] = None
             c['cover'] = None
             
-            f = ctk.CTkFrame(self.scroll, fg_color="transparent")
-            f.pack(fill="x", pady=2)
+            f = ctk.CTkFrame(self.scroll, fg_color="transparent", height=25)
+            f.pack(fill="x", pady=1) 
+            f.pack_propagate(False) 
+            
             v = ctk.BooleanVar(value=True)
-            chk = ctk.CTkCheckBox(f, text=c['name'], variable=v, width=140)
-            chk.pack(side="left", padx=5)
+            chk = ctk.CTkCheckBox(f, text=c['name'], variable=v, width=140, checkbox_width=18, checkbox_height=18, font=("Arial", 12))
+            chk.pack(side="left", padx=5, pady=2)
             
-            lbl_vol = ctk.CTkLabel(f, text="📄 Individual", text_color="#888", width=180, anchor="w")
-            lbl_vol.pack(side="left", padx=5)
+            # Adicionado o 'expand=True, fill="x"' aqui para o texto central preencher o vazio
+            lbl_vol = ctk.CTkLabel(f, text="📄 Individual", text_color="#888", anchor="w", font=("Arial", 11))
+            lbl_vol.pack(side="left", padx=5, expand=True, fill="x")
             
-            lbl_status = ctk.CTkLabel(f, text="", width=90)
+            lbl_status = ctk.CTkLabel(f, text="", width=90, font=("Arial", 11))
             lbl_status.pack(side="right", padx=5)
             
             c['gui_id'] = i
